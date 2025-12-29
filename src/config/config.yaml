@@ -11,7 +11,7 @@ default_operation_mode: "Real"  # Use "Real" for actual movement
 # Collision detection settings
 collision_detection:
   mode: 1  # 0 = Off, 1 = On, 2 = On with threshold
-  threshold: 0.2  # Collision threshold in mm
+  threshold: 0.1  # Collision threshold in mm
 
 enable_waiting_ack: true  # Enable waiting for acknowledgment
 

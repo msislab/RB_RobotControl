@@ -4,10 +4,8 @@ import time
 import numpy as np
 import rbpodo as rb
 from loguru import logger
-
 from src.robot.controller import RobotController
 from src.utils.color import *
-
 
 class RobotApplication:
     """Main application class that orchestrates robot operations."""
@@ -53,43 +51,47 @@ class RobotApplication:
 
         # Use Move Speed L to move the robot in a square pattern
         t = time.time()
-        offset = 200
-        time_step = 0.3
-        t1 = 0.3
+        offset = 600
+        time_step = 0.1
+        t1 = 0.1
         t2 = 0.03
-        gain = 0.1
+        gain = 0.5
         alpha = 0.05
 
         z = 400
+        
+        # Repeat the sequence
         for i in range(500):
-            # Example motion sequence
-            logger.info(cyan("Executing motion sequence"))
+            
+            # Bring robot to halt.
+            self.controller.move_speed_l(np.array([0, 0, 0, 0, 0, 0]), t1=t1, t2=t2, gain=gain, alpha=alpha)
+            time.sleep(0.5)
+            
+            # Move to Home+Z Position
             z = 400 + (i%5)*10
             [_x, _y, _z, _rx, _ry, _rz] = home
             target_tcp = np.array([_x, _y, z, _rx, _ry, _rz])
-            time.sleep(1)
             self.controller.move_to_point(target_tcp, speed=100, acc=500)
-                
+                                       
             # Define a square motion in x-y axis
             for i in range(10):
-                motions = [[0       , offset , 0, 0, 0, 0], 
-                           [offset  , offset , 0, 0, 0, 0], 
-                           [offset  ,      0 , 0, 0, 0, 0], 
-                           [0       , -offset, 0, 0, 0, 0], 
-                           [-offset , -offset, 0, 0, 0, 0], 
-                           [-offset ,       0, 0, 0, 0, 0]
+                motions = [[0       , offset , offset , 0, 0, 0], 
+                           [offset  , offset ,      0 , 0, 0, 0], 
+                           [offset  ,      0 ,-offset , 0, 0, 0], 
+                           [0       , -offset, offset , 0, 0, 0], 
+                           [-offset , -offset,      0 , 0, 0, 0], 
+                           [-offset ,       0, -offset, 0, 0, 0]
                            ]
                 for m in motions:
-                    for i in range(1):
-                        self.controller.move_speed_l(np.array(m), t1=t1, t2=t2, gain=gain, alpha=alpha)
-                        time.sleep(time_step)
+                    self.controller.move_speed_l(np.array(m), t1=t1, t2=t2, gain=gain, alpha=alpha)
+                    time.sleep(time_step)                
 
+            # Log the current position
             current_tcp = self.controller.get_tcp_position()
             logger.info(green(f"       -> Current TCP: {current_tcp}"))
     
-
         # Stop Motion
-        self.controller.jog_robot_l(0, np.array([0, 0, 0, 0, 0, 0]), 5, 5)
+        self.controller.move_speed_l(np.array([0,0,0,0,0,0]), t1=t1, t2=t2, gain=gain, alpha=alpha)
         time.sleep(0.1)
         
         
