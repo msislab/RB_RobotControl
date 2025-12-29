@@ -1,0 +1,44 @@
+# Configuration for the robot application
+
+# Robot controller IP address
+robot_ip: "192.168.2.101"  # TODO: your controller IP
+
+# Default robot settings
+default_speed_bar: 1  # 50% speed
+default_operation_mode: "Real"  # Use "Real" for actual movement
+# default_operation_mode: "Simulation"  # Use "Real" for actual movement
+
+# Collision detection settings
+collision_detection:
+  mode: 1  # 0 = Off, 1 = On, 2 = On with threshold
+  threshold: 0.2  # Collision threshold in mm
+
+enable_waiting_ack: true  # Enable waiting for acknowledgment
+
+# Speed and acceleration settings
+speed:
+  # Speed multipliers
+  speed_multiplier: 1  # Speed multiplier (typically 0.0 ~ 1.0)
+  acceleration_multiplier: 1  # Acceleration multiplier (typically 0.0 ~ 1.0)
+  
+  # Joint motion speed/acceleration (deg/s for speeds, deg/s² for accelerations)
+  # Single value applied to all joints [j0, j1, j2, j3, j4, j5]
+  joint:
+    speed: 180.0  # Joint speed in deg/s (applied to all joints)
+    acceleration: 180.0  # Joint acceleration in deg/s² (applied to all joints)
+  
+  # Cartesian motion speed/acceleration
+  # Linear: mm/s for speeds, mm/s² for accelerations
+  # Rotational: deg/s for speeds, deg/s² for accelerations
+  cartesian:
+    linear_speed: 1000.0  # Linear speed in mm/s (x, y, z)
+    linear_acceleration: 1000.0  # Linear acceleration in mm/s² (x, y, z)
+    rotational_speed: 45.0  # Rotational speed in deg/s (rx, ry, rz) - Max 
+    rotational_acceleration: 500.0  # Rotational acceleration in deg/s² (rx, ry, rz)
+
+# Logger configuration
+logger:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "None"  # "detailed", "simple", "minimal", or None for custom
+  colorize: true  # Enable colored output
+
