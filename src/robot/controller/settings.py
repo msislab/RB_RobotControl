@@ -50,6 +50,23 @@ def add_settings_methods(cls):
         """Set collision detection threshold. See RobotSettings.set_collision_threshold() for details."""
         self.settings.set_collision_threshold(threshold)
     
+    def set_vibrating_motion(self, *args):
+        """
+        Set vibrating motion parameters. See RobotSettings.set_vibrating_motion() for details.
+        
+        Args:
+            *args: Variable arguments for the vibrating motion command
+        """
+        self.settings.set_vibrating_motion(*args)
+    
+    def enable_vibrating_motion(self):
+        """Enable vibrating motion. See RobotSettings.enable_vibrating_motion() for details."""
+        self.settings.enable_vibrating_motion()
+    
+    def disable_vibrating_motion(self):
+        """Disable vibrating motion. See RobotSettings.disable_vibrating_motion() for details."""
+        self.settings.disable_vibrating_motion()
+    
     # Attach methods to class
     cls.set_speed_bar = set_speed_bar
     cls.set_speed_multiplier = set_speed_multiplier
@@ -59,6 +76,9 @@ def add_settings_methods(cls):
     cls.set_collision_mode = set_collision_mode
     cls.set_collision_onoff = set_collision_onoff
     cls.set_collision_threshold = set_collision_threshold
+    cls.set_vibrating_motion = set_vibrating_motion
+    cls.enable_vibrating_motion = enable_vibrating_motion
+    cls.disable_vibrating_motion = disable_vibrating_motion
 
 
 add_settings_methods(RobotController)
