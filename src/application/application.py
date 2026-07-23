@@ -20,87 +20,124 @@ class RobotApplication:
         self.robot_ip = robot_ip
         self.controller = RobotController(robot_ip)
         self.running = False
-    
-    def setup(self):
-        """
-        Setup robot connection and configuration.
-        
-        Args:
-            operation_mode: Simulation or Real mode
-            speed_bar: Speed bar setting (1 = 50%)
-        """
+        self.stop_requested = False
 
-        # Connect and initialize robot
+    def request_stop(self) -> None:
+        """Ask the motion loop to exit (safe from GUI / other threads)."""
+        self.stop_requested = True
+        self.running = False
+
+    def setup_with_settings(self, cfg: dict) -> None:
+        """Connect (or reconnect) and apply GUI settings, then mark running."""
+        ip = (cfg.get("robot_ip") or self.robot_ip).strip()
+        need_connect = not getattr(self, "_setup_done", False) or ip != self.robot_ip
+        if need_connect:
+            if getattr(self, "_setup_done", False):
+                try:
+                    self.controller.stop()
+                except Exception as e:
+                    logger.warning("Stop before reconnect: {}", e)
+            self.robot_ip = ip
+            self.controller = RobotController(ip)
+            self.controller.connect()
+            self.controller.initialize()
+            self._setup_done = True
+        else:
+            self.running = True
+
+        mode = cfg.get("operation_mode")
+        if mode:
+            self.controller.settings.set_operation_mode(mode)
+        self.controller.set_speed_acc_j(
+            float(cfg.get("joint_speed", 180.0)),
+            float(cfg.get("joint_acc", 180.0)),
+        )
+        self.controller.set_speed_acc_l(
+            float(cfg.get("linear_speed", 1000.0)),
+            float(cfg.get("linear_acc", 1000.0)),
+        )
+        # Robot API speed bar stays at config default_speed_bar (historically 0.5).
+        # GUI motion.speed_bar only scales move_speed_l cartesian speeds.
+        from src.config.loader import DEFAULT_SPEED_BAR
+        self.controller.set_speed_bar(float(DEFAULT_SPEED_BAR))
+        self._motion_cfg = dict(cfg)
+        self.running = True
+        self.stop_requested = False
+        logger.info(green("       -> Robot application setup complete"))
+
+    def setup(self):
+        """Setup robot connection and configuration (YAML defaults)."""
         self.controller.connect()
         self.controller.initialize()
-        
         self.running = True
+        self.stop_requested = False
+        self._setup_done = True
         logger.info(green("       -> Robot application setup complete"))
     
     def execute_motion_sequence(self):
-        """Execute the main motion sequence."""
-        if not self.running:
+        """Execute the main motion sequence (params from GUI/config motion)."""
+        if not self.running and not self.stop_requested:
             raise RuntimeError("Application not set up. Call setup() first.")
-        
-        home = np.array([-300.0, -450.0, 350.0, 90.0, 0, 0.0])
-        
-        # # motion sequence
-        # logger.info(cyan("Executing motion sequence"))
-        # target_tcp = home
-        # self.controller.move_to_point(target_tcp, speed=100, acc=500)
-        
-        # Example: Enable vibrating motion before motion sequence
-        # self.controller.enable_vibrating_motion()
-        # Or with custom parameters (adjust based on your robot's API):
-        # self.controller.set_vibrating_motion(1, 0, 1, 0.8, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        self.running = True
+        self.stop_requested = False
 
-        # Use Move Speed L to move the robot in a square pattern
-        t = time.time()
-        offset = 600
-        
-        time_step = 0.1
-        t1 = 0.08
-        t2 = 0.03
-        gain = 0.5
-        alpha = 0.05
+        from src.config.loader import (
+            MOTION_SPEED_BAR, MOTION_HOME, MOTION_Z, MOTION_OFFSET,
+            MOTION_TIME_STEP, MOTION_T1, MOTION_T2, MOTION_GAIN, MOTION_ALPHA,
+        )
+        mcfg = getattr(self, "_motion_cfg", {}) or {}
+        speed_bar = float(mcfg.get("speed_bar", MOTION_SPEED_BAR))
+        home = np.array(mcfg.get("home", MOTION_HOME), dtype=float)
+        offset = float(mcfg.get("offset", MOTION_OFFSET)) * speed_bar
+        time_step = float(mcfg.get("time_step", MOTION_TIME_STEP))
+        t1 = float(mcfg.get("t1", MOTION_T1))
+        t2 = float(mcfg.get("t2", MOTION_T2))
+        gain = float(mcfg.get("gain", MOTION_GAIN))
+        alpha = float(mcfg.get("alpha", MOTION_ALPHA))
+        z = float(mcfg.get("z", MOTION_Z))
+        logger.info(green(
+            f"       -> move_speed_l speed_bar={speed_bar} offset={offset}"
+        ))
 
-        z = 350
-        
-        self.controller
-        
-        # Repeat the 
-        # exit(0)
-        for i in range(50000):
-            
-            # Bring robot to halt.
-            self.controller.move_speed_l(np.array([0, 0, 0, 0, 0, 0]), t1=t1, t2=t2, gain=gain, alpha=alpha)
+        for _outer in range(50000):
+            if self.stop_requested:
+                break
+            self.controller.move_speed_l(
+                np.zeros(6), t1=t1, t2=t2, gain=gain, alpha=alpha
+            )
             time.sleep(0.5)
-            
-            # Move to Home+Z Position
-            # z = 400 + (i%5)*10
-            [_x, _y, _z, _rx, _ry, _rz] = home
-            target_tcp = np.array([_x, _y, z, _rx, _ry, _rz])
-            self.controller.move_to_point(target_tcp, speed=100, acc=500)
-                                       
-            # Define a square motion in x-y axis
-            for i in range(20):
-                motions = [[0       , offset , offset , 0, 0, 0], 
-                           [offset  , offset ,      0 , 0, 0, 0], 
-                           [offset  ,      0 ,-offset , 0, 0, 0], 
-                           [0       , -offset, offset , 0, 0, 0], 
-                           [-offset , -offset,      0 , 0, 0, 0], 
-                           [-offset ,       0, -offset, 0, 0, 0]
-                           ]
-                for m in motions:
-                    self.controller.move_speed_l(np.array(m), t1=t1, t2=t2, gain=gain, alpha=alpha)
-                    time.sleep(time_step)                
+            if self.stop_requested:
+                break
 
-            # Log the current position
-            current_tcp = self.controller.get_tcp_position()
-            logger.info(green(f"       -> Current TCP: {current_tcp}"))
-    
-        # Stop Motion
-        self.controller.move_speed_l(np.array([0,0,0,0,0,0]), t1=t1, t2=t2, gain=gain, alpha=alpha)
+            _x, _y, _z, _rx, _ry, _rz = home
+            self.controller.move_to_point(
+                np.array([_x, _y, z, _rx, _ry, _rz]), speed=100, acc=500
+            )
+            motions = [
+                [0, offset, offset, 0, 0, 0],
+                [offset, offset, 0, 0, 0, 0],
+                [offset, 0, -offset, 0, 0, 0],
+                [0, -offset, offset, 0, 0, 0],
+                [-offset, -offset, 0, 0, 0, 0],
+                [-offset, 0, -offset, 0, 0, 0],
+            ]
+            for _inner in range(100):
+                if self.stop_requested:
+                    break
+                for m in motions:
+                    if self.stop_requested:
+                        break
+                    self.controller.move_speed_l(
+                        np.array(m), t1=t1, t2=t2, gain=gain, alpha=alpha
+                    )
+                    time.sleep(time_step)
+            if self.stop_requested:
+                break
+            logger.info(green(f"       -> Current TCP: {self.controller.get_tcp_position()}"))
+
+        self.controller.move_speed_l(
+            np.zeros(6), t1=t1, t2=t2, gain=gain, alpha=alpha
+        )
         time.sleep(0.1)
         
         

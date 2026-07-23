@@ -63,10 +63,37 @@ LOGGER_LEVEL = _logger_config.get('level', 'INFO')
 LOGGER_FORMAT = _logger_config.get('format', 'None')
 LOGGER_COLORIZE = _logger_config.get('colorize', True)
 
+# Camera / RealSense (live display)
+_camera_config = _config.get('camera', {}) or {}
+CAMERA_ENABLED = bool(_camera_config.get('enabled', False))
+CAMERA_VIEW = _camera_config.get('view', 'rgb')
+CAMERA_FPS = int(_camera_config.get('fps', 30))
+CAMERA_SERIAL = _camera_config.get('serial', None)
+CAMERA_WIDTH = int(_camera_config.get('width', 640))
+CAMERA_HEIGHT = int(_camera_config.get('height', 360))
+
+# move_speed_l motion sequence
+_motion = _config.get('motion', {}) or {}
+# Default 1.0 so move_speed_l uses full offset (same as old hard-coded 600).
+MOTION_SPEED_BAR = float(_motion.get('speed_bar', 1.0))
+MOTION_HOME = list(_motion.get('home', [-300.0, -450.0, 350.0, 90.0, 0.0, 0.0]))
+MOTION_Z = float(_motion.get('z', 350.0))
+MOTION_OFFSET = float(_motion.get('offset', 600.0))
+MOTION_TIME_STEP = float(_motion.get('time_step', 0.1))
+MOTION_T1 = float(_motion.get('t1', 0.08))
+MOTION_T2 = float(_motion.get('t2', 0.03))
+MOTION_GAIN = float(_motion.get('gain', 0.5))
+MOTION_ALPHA = float(_motion.get('alpha', 0.05))
+
 __all__ = ['ROBOT_IP', 'DEFAULT_SPEED_BAR', 'DEFAULT_OPERATION_MODE',
            'SPEED_MULTIPLIER', 'ACCELERATION_MULTIPLIER',
            'JOINT_SPEED', 'JOINT_ACCELERATION',
            'CARTESIAN_LINEAR_SPEED', 'CARTESIAN_LINEAR_ACCELERATION',
            'CARTESIAN_ROTATIONAL_SPEED', 'CARTESIAN_ROTATIONAL_ACCELERATION',
-           'LOGGER_LEVEL', 'LOGGER_FORMAT', 'LOGGER_COLORIZE', 'load_config']
+           'LOGGER_LEVEL', 'LOGGER_FORMAT', 'LOGGER_COLORIZE',
+           'CAMERA_ENABLED', 'CAMERA_VIEW', 'CAMERA_FPS', 'CAMERA_SERIAL',
+           'CAMERA_WIDTH', 'CAMERA_HEIGHT',
+           'MOTION_SPEED_BAR', 'MOTION_HOME', 'MOTION_Z', 'MOTION_OFFSET',
+           'MOTION_TIME_STEP', 'MOTION_T1', 'MOTION_T2', 'MOTION_GAIN',
+           'MOTION_ALPHA', 'load_config']
 
