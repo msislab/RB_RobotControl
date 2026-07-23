@@ -42,7 +42,7 @@ class RobotApplication:
         if not self.running:
             raise RuntimeError("Application not set up. Call setup() first.")
         
-        # home = np.array([400.0, 400.0, 400.0, 90.0, 45.0, -130.0])
+        home = np.array([-300.0, -450.0, 350.0, 90.0, 0, 0.0])
         
         # # motion sequence
         # logger.info(cyan("Executing motion sequence"))
@@ -50,36 +50,40 @@ class RobotApplication:
         # self.controller.move_to_point(target_tcp, speed=100, acc=500)
         
         # Example: Enable vibrating motion before motion sequence
-        self.controller.enable_vibrating_motion()
+        # self.controller.enable_vibrating_motion()
         # Or with custom parameters (adjust based on your robot's API):
         # self.controller.set_vibrating_motion(1, 0, 1, 0.8, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
         # Use Move Speed L to move the robot in a square pattern
         t = time.time()
         offset = 600
+        
         time_step = 0.1
         t1 = 0.08
         t2 = 0.03
         gain = 0.5
         alpha = 0.05
 
-        z = 400
+        z = 350
         
-        # Repeat the sequence
-        for i in range(500):
+        self.controller
+        
+        # Repeat the 
+        # exit(0)
+        for i in range(50000):
             
             # Bring robot to halt.
             self.controller.move_speed_l(np.array([0, 0, 0, 0, 0, 0]), t1=t1, t2=t2, gain=gain, alpha=alpha)
             time.sleep(0.5)
             
             # Move to Home+Z Position
-            z = 400 + (i%5)*10
+            # z = 400 + (i%5)*10
             [_x, _y, _z, _rx, _ry, _rz] = home
             target_tcp = np.array([_x, _y, z, _rx, _ry, _rz])
             self.controller.move_to_point(target_tcp, speed=100, acc=500)
                                        
             # Define a square motion in x-y axis
-            for i in range(10):
+            for i in range(20):
                 motions = [[0       , offset , offset , 0, 0, 0], 
                            [offset  , offset ,      0 , 0, 0, 0], 
                            [offset  ,      0 ,-offset , 0, 0, 0], 

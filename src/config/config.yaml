@@ -1,17 +1,17 @@
 # Configuration for the robot application
 
 # Robot controller IP address
-robot_ip: "192.168.2.101"  # TODO: your controller IP
+robot_ip: "192.168.2.249"  # TODO: your controller IP
 
 # Default robot settings
-default_speed_bar: 1  # 50% speed
+default_speed_bar: 0.5  # 50% speed
+# default_operation_mode: "Real"  # Use "Real" for actual movement
 default_operation_mode: "Real"  # Use "Real" for actual movement
-# default_operation_mode: "Simulation"  # Use "Real" for actual movement
 
 # Collision detection settings
 collision_detection:
   mode: 1  # 0 = Off, 1 = On, 2 = On with threshold
-  threshold: 0.1  # Collision threshold in mm
+  threshold: 0.3  # Collision threshold in mm
 
 enable_waiting_ack: true  # Enable waiting for acknowledgment
 
