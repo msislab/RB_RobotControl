@@ -39,3 +39,21 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Agent / Cursor — local only (.githooks/pre-commit also unstages these)
+.cursor/
+.cursorrules
+AGENTS.md
+.githooks/
+.ai-worktree/
+.code-review-graph/
+learning.md
+memory.md
+.claude/
+.kiro/
+.windsurfrules
+.opencode.json
+.mcp.json
+CLAUDE.md
+GEMINI.md
+QODER.md
