@@ -65,7 +65,13 @@ def build_main_layout(
     panel.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
     labels: Dict[str, tk.Label] = {}
     frames: Dict[str, ttk.LabelFrame] = {}
-    for key, title in (("color", "RGB"), ("depth", "Depth"), ("ir1", "IR1"), ("ir2", "IR2")):
+    for key, title in (
+        ("color", "RGB"),
+        ("depth", "Depth"),
+        ("ir1", "IR1"),
+        ("ir2", "IR2"),
+        ("stereo_depth", "Stereo depth"),
+    ):
         fr = ttk.LabelFrame(panel, text=title, style="Preview.TLabelframe")
         lbl = tk.Label(fr, bg=SURFACE_2, fg="#8b97a8", text="—")
         lbl.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)

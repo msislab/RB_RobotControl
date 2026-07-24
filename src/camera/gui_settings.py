@@ -52,6 +52,17 @@ class SettingsPanel:
         cb = ttk.Checkbutton(cam, text="Enable RealSense", variable=self.cam_enabled)
         cb.pack(anchor=tk.W, pady=(0, 4))
         self._lockable.append(cb)
+        self.stereo_enabled = tk.BooleanVar(value=bool(d.get("stereo_enabled", False)))
+        stereo_cb = ttk.Checkbutton(
+            cam, text="Enable stereo depth", variable=self.stereo_enabled
+        )
+        stereo_cb.pack(anchor=tk.W, pady=(0, 4))
+        self._lockable.append(stereo_cb)
+        self._stereo_backend = str(d.get("stereo_backend", "pytorch"))
+        self._stereo_variant = str(d.get("stereo_variant", "23-36-37"))
+        self._stereo_valid_iters = int(d.get("stereo_valid_iters", 4))
+        self._stereo_z_far = float(d.get("stereo_z_far", 1.0))
+        self._stereo_onnx_size = str(d.get("stereo_onnx_size", "576x960"))
 
         self.width_var = tk.IntVar(value=int(d.get("width", 640)))
         self.height_var = tk.IntVar(value=int(d.get("height", 360)))
@@ -157,6 +168,12 @@ class SettingsPanel:
             "home": home_from_vars(m["home_vars"]),
             "z": float(m["z"].get()),
             "camera_enabled": bool(self.cam_enabled.get()),
+            "stereo_enabled": bool(self.stereo_enabled.get()),
+            "stereo_backend": self._stereo_backend,
+            "stereo_variant": self._stereo_variant,
+            "stereo_valid_iters": self._stereo_valid_iters,
+            "stereo_z_far": self._stereo_z_far,
+            "stereo_onnx_size": self._stereo_onnx_size,
             "width": int(self.width_var.get()),
             "height": int(self.height_var.get()),
             "fps": FPS_STEPS[int(self.fps_idx.get())],

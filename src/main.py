@@ -24,6 +24,12 @@ from src.config.loader import (
     CAMERA_SERIAL,
     CAMERA_WIDTH,
     CAMERA_HEIGHT,
+    STEREO_ENABLED,
+    STEREO_BACKEND,
+    STEREO_VARIANT,
+    STEREO_VALID_ITERS,
+    STEREO_Z_FAR,
+    STEREO_ONNX_SIZE,
     MOTION_SPEED_BAR,
     MOTION_HOME,
     MOTION_Z,
@@ -79,6 +85,12 @@ def main():
         "serial": CAMERA_SERIAL,
         "width": CAMERA_WIDTH,
         "height": CAMERA_HEIGHT,
+        "stereo_enabled": STEREO_ENABLED,
+        "stereo_backend": STEREO_BACKEND,
+        "stereo_variant": STEREO_VARIANT,
+        "stereo_valid_iters": STEREO_VALID_ITERS,
+        "stereo_z_far": STEREO_Z_FAR,
+        "stereo_onnx_size": STEREO_ONNX_SIZE,
     }
     CameraControlGui(app, defaults=defaults).run()
 

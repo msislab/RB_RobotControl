@@ -1,0 +1,5 @@
+# Optional deps for stereo depth (Fast-FoundationStereo).
+# PyTorch CUDA: install a wheel that matches your GPU, e.g.
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+# ONNX backend (camera.stereo_depth.backend: onnx):
+onnxruntime-gpu>=1.17.0

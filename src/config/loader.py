@@ -71,6 +71,13 @@ CAMERA_FPS = int(_camera_config.get('fps', 30))
 CAMERA_SERIAL = _camera_config.get('serial', None)
 CAMERA_WIDTH = int(_camera_config.get('width', 640))
 CAMERA_HEIGHT = int(_camera_config.get('height', 360))
+_stereo = _camera_config.get('stereo_depth', {}) or {}
+STEREO_ENABLED = bool(_stereo.get('enabled', False))
+STEREO_BACKEND = str(_stereo.get('backend', 'pytorch'))
+STEREO_VARIANT = str(_stereo.get('variant', '23-36-37'))
+STEREO_VALID_ITERS = int(_stereo.get('valid_iters', 4))
+STEREO_Z_FAR = float(_stereo.get('z_far', 1.0))
+STEREO_ONNX_SIZE = str(_stereo.get('onnx_size', '576x960'))
 
 # move_speed_l motion sequence
 _motion = _config.get('motion', {}) or {}
@@ -93,6 +100,8 @@ __all__ = ['ROBOT_IP', 'DEFAULT_SPEED_BAR', 'DEFAULT_OPERATION_MODE',
            'LOGGER_LEVEL', 'LOGGER_FORMAT', 'LOGGER_COLORIZE',
            'CAMERA_ENABLED', 'CAMERA_VIEW', 'CAMERA_FPS', 'CAMERA_SERIAL',
            'CAMERA_WIDTH', 'CAMERA_HEIGHT',
+           'STEREO_ENABLED', 'STEREO_BACKEND', 'STEREO_VARIANT',
+           'STEREO_VALID_ITERS', 'STEREO_Z_FAR', 'STEREO_ONNX_SIZE',
            'MOTION_SPEED_BAR', 'MOTION_HOME', 'MOTION_Z', 'MOTION_OFFSET',
            'MOTION_TIME_STEP', 'MOTION_T1', 'MOTION_T2', 'MOTION_GAIN',
            'MOTION_ALPHA', 'load_config']

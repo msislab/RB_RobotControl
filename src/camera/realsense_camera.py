@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pyrealsense2 as rs
+
+from src.camera.depth.stereo_cal import read_stereo_calibration
 
 VIEW_RGB = "rgb"
 VIEW_RGB_DEPTH = "rgb_depth"
@@ -23,6 +25,7 @@ class RealSenseCamera:
         serial: Optional[str] = None,
         width: int = 640,
         height: int = 360,
+        force_ir: bool = False,
     ) -> None:
         if view not in VALID_VIEWS:
             raise ValueError(f"view must be one of {VALID_VIEWS}, got {view!r}")
@@ -31,8 +34,11 @@ class RealSenseCamera:
         self.serial = serial
         self.width = width
         self.height = height
+        self.force_ir = bool(force_ir)
         self._pipeline: Optional[rs.pipeline] = None
         self._align: Optional[rs.align] = None
+        self._stereo_fx: Optional[float] = None
+        self._stereo_baseline: Optional[float] = None
 
     @property
     def want_depth(self) -> bool:
@@ -40,7 +46,13 @@ class RealSenseCamera:
 
     @property
     def want_ir(self) -> bool:
-        return self.view == VIEW_RGB_DEPTH_IR
+        return self.view == VIEW_RGB_DEPTH_IR or self.force_ir
+
+    @property
+    def stereo_calibration(self) -> Optional[Tuple[float, float]]:
+        if self._stereo_fx is None or self._stereo_baseline is None:
+            return None
+        return self._stereo_fx, self._stereo_baseline
 
     def start(self) -> None:
         if self._pipeline is not None:
@@ -66,11 +78,15 @@ class RealSenseCamera:
         pipeline.start(config)
         self._pipeline = pipeline
         self._align = rs.align(rs.stream.color) if self.want_depth else None
+        self._stereo_fx = self._stereo_baseline = None
+        if self.want_ir:
+            self._stereo_fx, self._stereo_baseline = read_stereo_calibration(pipeline, rs)
 
     def stop(self) -> None:
         pipeline = self._pipeline
         self._pipeline = None
         self._align = None
+        self._stereo_fx = self._stereo_baseline = None
         if pipeline is not None:
             try:
                 pipeline.stop()
@@ -82,12 +98,11 @@ class RealSenseCamera:
         if self._pipeline is None:
             raise RuntimeError("Camera not started")
         frames = self._pipeline.wait_for_frames(2000)
-        # IR from raw frameset (align can drop IR on some profiles).
         ir1 = ir2 = None
         if self.want_ir:
             ir1 = frames.get_infrared_frame(1)
             ir2 = frames.get_infrared_frame(2)
-            if not ir1 or not ir2:
+            if self.view == VIEW_RGB_DEPTH_IR and (not ir1 or not ir2):
                 raise RuntimeError("Missing IR1/IR2 frame")
 
         view = frames
@@ -106,7 +121,7 @@ class RealSenseCamera:
                 raise RuntimeError("No depth frame")
             out["depth"] = _depth_to_bgr(np.asanyarray(depth.get_data()))
 
-        if self.want_ir:
+        if ir1 and ir2:
             out["ir1"] = _gray_to_bgr(np.asanyarray(ir1.get_data()))
             out["ir2"] = _gray_to_bgr(np.asanyarray(ir2.get_data()))
         return out
