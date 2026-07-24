@@ -23,6 +23,7 @@ class SettingsPanel:
         *,
         on_live_change: Optional[Callable[[], None]] = None,
         on_hide_preview: Optional[Callable[[bool], None]] = None,
+        on_speed_bar_change: Optional[Callable[[float], None]] = None,
     ) -> None:
         self.frame = ttk.Frame(parent, style="Surface.TFrame")
         self._lockable: List[tk.Widget] = []
@@ -106,7 +107,9 @@ class SettingsPanel:
             r.pack(side=tk.LEFT, padx=(0, 12))
             self._lockable.append(r)
 
-        self._motion = build_motion_section(self.frame, d, self._lockable)
+        self._motion = build_motion_section(
+            self.frame, d, self._lockable, on_speed_bar_change=on_speed_bar_change
+        )
         self._cam = build_camera_section(
             self.frame,
             d,
@@ -117,7 +120,7 @@ class SettingsPanel:
 
         ttk.Label(
             self.frame,
-            text="Geometry applies on Start. Exposure/gain and hide-preview apply live.",
+            text="Geometry and Speed bar apply on Start. Exposure/gain and hide-preview apply live.",
             style="Muted.TLabel",
             font=FONT_LABEL,
         ).pack(anchor=tk.W, pady=(6, 0))

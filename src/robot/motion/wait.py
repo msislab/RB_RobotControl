@@ -13,10 +13,11 @@ from src.utils.color import yellow
 
 def wait_move_done(robot: Any, rc: Any, timeout: float = -1.0) -> None:
     """
-    Wait for the last MoveJ/MoveL to finish.
+    Wait for the last MoveJ/MoveL/MoveXB to finish.
 
-    Prefer rbpodo wait_for_move_started/finished; fall back to RobotState
-    polling (started events can be missed when waiting_ack consumes them).
+    Use wait_for_move_started, then RobotState polling for finished.
+    A long wait_for_move_finished holds the Cobot command channel and
+    blocks live set_speed_bar (and other settings) until the move ends.
     """
     start_t = time.monotonic()
     start_timeout = 5.0 if timeout < 0 else min(float(timeout), 5.0)
@@ -25,16 +26,7 @@ def wait_move_done(robot: Any, rc: Any, timeout: float = -1.0) -> None:
     )
     stype = _ret_type(started)
     logger.info(yellow(f"       -> wait_for_move_started: {started} ({stype})"))
-    if stype == rb.ReturnType.Success:
-        finished = robot.wait_for_move_finished(
-            rc, timeout=timeout, return_on_error=False
-        )
-        ftype = _ret_type(finished)
-        logger.info(yellow(f"       -> wait_for_move_finished: {finished} ({ftype})"))
-        if ftype == rb.ReturnType.Success:
-            return
-        logger.warning(yellow("wait_for_move_finished failed — polling RobotState"))
-    else:
+    if stype != rb.ReturnType.Success:
         logger.warning(yellow("wait_for_move_started failed — polling RobotState"))
 
     _poll_until_idle(robot, rc, start_t, timeout)

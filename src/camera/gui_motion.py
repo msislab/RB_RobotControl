@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from src.camera.gui_theme import FONT_LABEL
 
@@ -41,6 +41,7 @@ def build_motion_section(
     parent: tk.Misc,
     defaults: Dict[str, Any],
     lockable: List[tk.Widget],
+    on_speed_bar_change: Optional[Callable[[float], None]] = None,
 ) -> Dict[str, Any]:
     """Add Motion card widgets; return dict of tk variables / accessors."""
     motion = ttk.LabelFrame(parent, text="Motion", style="Card.TLabelframe")
@@ -105,14 +106,16 @@ def build_motion_section(
         n = round(n * 20) / 20
         speed_bar.set(n)
         bar_lbl.set(f"{int(n * 100)}%")
+        if on_speed_bar_change is not None:
+            on_speed_bar_change(n)
 
     sc = ttk.Scale(bar_row, from_=0.05, to=1.0, orient=tk.HORIZONTAL, command=_on_bar)
     sc.set(speed_bar.get())
     sc.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    lockable.append(sc)
     ttk.Label(bar_row, textvariable=bar_lbl, width=5, style="Surface.TLabel").pack(
         side=tk.LEFT, padx=(8, 0)
     )
-    lockable.append(sc)
 
     offset = _float(0, 0, "Offset (mm/s)", "offset", 600.0)
     time_step = _float(0, 1, "Time step (s)", "time_step", 0.1)

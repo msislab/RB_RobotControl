@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, Optional
+
+from src.camera.device_fps import DeviceFpsStore
 
 
 class FpsMeter:
@@ -30,11 +32,12 @@ class FpsMeter:
 
 
 class CameraFpsBoard:
-    """One meter per stream key; updates LabelFrame titles as NAME — m/t."""
+    """One meter per stream key; titles as NAME — m / cam x (cfg t)."""
 
     def __init__(self) -> None:
         self._meters: Dict[str, FpsMeter] = {}
         self.titles: Dict[str, str] = {}
+        self.device_fps: Optional[DeviceFpsStore] = None
 
     def reset(self) -> None:
         self._meters.clear()
@@ -48,8 +51,13 @@ class CameraFpsBoard:
         meter.tick()
         base = self.titles.get(key, key)
         fr = frames.get(key)
-        if fr is not None:
-            fr.configure(text=f"{base} — {meter.measured}/{int(target)}")
+        if fr is None:
+            return
+        cam = None if self.device_fps is None else self.device_fps.get(key)
+        cam_s = "—" if cam is None else str(int(round(cam)))
+        fr.configure(
+            text=f"{base} — {meter.measured} / cam {cam_s} (cfg {int(target)})"
+        )
 
     def paint_titles(
         self,

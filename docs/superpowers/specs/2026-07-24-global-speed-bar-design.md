@@ -15,4 +15,7 @@ GUI Speed bar slider drives the robot’s global `set_speed_bar` (0–1) for bot
 
 - Config YAML defaults
 - Removing ZigZag offset scaling
-- Live bar updates mid-motion (still applied at connect/start)
+
+## Superseded
+
+- Live bar updates mid-motion → see [`2026-07-24-live-speed-bar-design.md`](2026-07-24-live-speed-bar-design.md) (approved).

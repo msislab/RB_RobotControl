@@ -54,6 +54,21 @@ def set_numeric(st: Any, nodemap: Any, key: str, value: Any) -> None:
         logger.exception("Failed to set numeric {}={}", key, value)
 
 
+def get_numeric(st: Any, nodemap: Any, key: str) -> Optional[float]:
+    """Read a GenICam float/int node, or None if missing/unreadable."""
+    node, _resolved = _resolve_node(nodemap, key)
+    if node is None:
+        return None
+    try:
+        return float(st.PyIFloat(node).value)
+    except Exception:
+        pass
+    try:
+        return float(st.PyIInteger(node).value)
+    except Exception:
+        return None
+
+
 def numeric_range(st: Any, nodemap: Any, key: str) -> Optional[Tuple[float, float]]:
     """Return (min, max) for a GenICam float/int node, or None."""
     node, key = _resolve_node(nodemap, key)

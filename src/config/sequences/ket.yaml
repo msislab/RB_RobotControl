@@ -118,8 +118,8 @@ points:
     - 108.58
 sequence:
 - Home_L
-- Home_J
-- Mid
+# - Home_J
+- Mid_J
 - Pickup_High
 - Pickup
 - Pickup_High

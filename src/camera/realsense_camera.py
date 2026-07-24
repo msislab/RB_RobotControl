@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import pyrealsense2 as rs
@@ -44,6 +44,7 @@ class RealSenseCamera:
         self._color_sensor = None
         self._stereo_fx: Optional[float] = None
         self._stereo_baseline: Optional[float] = None
+        self.last_device_fps: Dict[str, Optional[float]] = {}
 
     @property
     def want_depth(self) -> bool:
@@ -147,20 +148,40 @@ class RealSenseCamera:
             view = self._align.process(frames)
 
         out: Dict[str, np.ndarray] = {}
+        fps: Dict[str, Optional[float]] = {}
         color = view.get_color_frame()
         if not color:
+            self.last_device_fps = {}
             return {}
         out["color"] = np.asanyarray(color.get_data())
+        fps["color"] = _actual_fps(color)
 
         if self.want_depth:
             depth = view.get_depth_frame()
             if depth:
                 out["depth"] = _depth_to_bgr(np.asanyarray(depth.get_data()))
+                fps["depth"] = _actual_fps(depth)
 
         if ir1 and ir2:
             out["ir1"] = _gray_to_bgr(np.asanyarray(ir1.get_data()))
             out["ir2"] = _gray_to_bgr(np.asanyarray(ir2.get_data()))
+            fps["ir1"] = _actual_fps(ir1)
+            fps["ir2"] = _actual_fps(ir2)
+        self.last_device_fps = fps
         return out
+
+
+def _actual_fps(frame: Any) -> Optional[float]:
+    """Live device actual FPS (Hz). Metadata is stored as Hz×1000."""
+    try:
+        meta = rs.frame_metadata_value.actual_fps
+        if not frame.supports_frame_metadata(meta):
+            return None
+        # librealsense: RS2_FRAME_METADATA_ACTUAL_FPS is fps × 1000.
+        value = float(frame.get_frame_metadata(meta)) / 1000.0
+        return value if value > 0 else None
+    except Exception:
+        return None
 
 
 def _depth_to_bgr(depth: np.ndarray) -> np.ndarray:

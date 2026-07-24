@@ -85,9 +85,7 @@ class CameraControlGui:
     def _schedule_pose(self) -> None:
         self._tcp, self._joints = peek_pose(self.app)
         if not self._robot_view:
-            if self._running or (
-                getattr(self.app, "_setup_done", False) and not self._starting
-            ):
+            if self._running or (getattr(self.app, "_setup_done", False) and not self._starting):
                 text = format_run_status(
                     rs_on=self._rs_on,
                     omron_n=self._omron_n,
@@ -146,9 +144,12 @@ class CameraControlGui:
     def _robot_worker(self) -> None:
         try:
             cfg = getattr(self, "_start_cfg", {}) or {}
+            logger.info(
+                "Robot worker begin routine={!r} merge={}",
+                cfg.get("robot_routine"), cfg.get("robot_sequence_merge"),
+            )
             self.app.setup_with_settings(cfg)
             from src.application.routines import run_routine
-
             run_routine(
                 self.app,
                 cfg.get("robot_routine", "zigzag"),
@@ -156,9 +157,10 @@ class CameraControlGui:
                 loop=bool(cfg.get("robot_sequence_loop", False)),
                 merge=bool(cfg.get("robot_sequence_merge", False)),
             )
+            logger.info("Robot worker: routine finished")
         except Exception as e:
             logger.error("Robot worker error: {}", e)
-            self.root.after(0, lambda: self.status_var.set(f"Robot error: {e}"))
+            self.root.after(0, lambda err=e: self.status_var.set(f"Robot error: {err}"))
 
     def _stop_cameras(self) -> None:
         stop_preview_workers(self)

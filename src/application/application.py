@@ -25,59 +25,25 @@ class RobotApplication:
         self._connect_lock = threading.Lock()
 
     def request_stop(self) -> None:
-        """Ask the motion loop to exit (safe from GUI / other threads)."""
+        """Ask the motion loop to exit and halt robot tasks (keep connection)."""
         self.stop_requested = True
         self.running = False
+        if not getattr(self, "_setup_done", False):
+            return
+        try:
+            self.controller.task_stop()
+        except Exception as e:
+            logger.warning("task_stop on request_stop failed: {}", e)
 
     def connect_with_settings(self, cfg: dict) -> None:
         """Connect/reconnect and apply settings; leave motion idle (no routine)."""
-        with self._connect_lock:
-            ip = (cfg.get("robot_ip") or self.robot_ip).strip()
-            need_connect = not getattr(self, "_setup_done", False) or ip != self.robot_ip
-            if need_connect:
-                if getattr(self, "_setup_done", False):
-                    try:
-                        self.controller.stop()
-                    except Exception as e:
-                        logger.warning("Stop before reconnect: {}", e)
-                self.robot_ip = ip
-                self.controller = RobotController(ip)
-                self.controller.connect()
-                self.controller.initialize()
-                self._setup_done = True
+        from src.application.connect_cfg import connect_with_settings as _apply
 
-            mode = cfg.get("operation_mode")
-            if mode:
-                self.controller.settings.set_operation_mode(mode)
-            self.controller.set_speed_acc_j(
-                float(cfg.get("joint_speed", 180.0)),
-                float(cfg.get("joint_acc", 180.0)),
-            )
-            self.controller.set_speed_acc_l(
-                float(cfg.get("linear_speed", 1000.0)),
-                float(cfg.get("linear_acc", 1000.0)),
-            )
-            self.controller.set_speed_multiplier(
-                float(cfg.get("speed_multiplier", 1.0))
-            )
-            self.controller.set_acc_multiplier(
-                float(cfg.get("acceleration_multiplier", 1.0))
-            )
-            from src.config.loader import DEFAULT_SPEED_BAR
-            self.controller.set_speed_bar(
-                float(cfg.get("speed_bar", DEFAULT_SPEED_BAR))
-            )
-            try:
-                self.controller.task_resume(collision=True)
-            except Exception as e:
-                logger.warning("Collision resume on connect failed: {}", e)
-            self._motion_cfg = dict(cfg)
-            self.running = False
-            self.stop_requested = False
-            logger.info(green("       -> Robot connected (idle)"))
+        _apply(self, cfg)
 
     def setup_with_settings(self, cfg: dict) -> None:
         """Connect (or reconnect), apply settings, then mark motion running."""
+        logger.info(yellow("       -> [robot-cfg] setup_with_settings begin"))
         self.connect_with_settings(cfg)
         self.running = True
         self.stop_requested = False
@@ -104,22 +70,29 @@ class RobotApplication:
             MOTION_TIME_STEP, MOTION_T1, MOTION_T2, MOTION_GAIN, MOTION_ALPHA,
         )
         mcfg = getattr(self, "_motion_cfg", {}) or {}
-        speed_bar = float(mcfg.get("speed_bar", MOTION_SPEED_BAR))
         home = np.array(mcfg.get("home", MOTION_HOME), dtype=float)
-        offset = float(mcfg.get("offset", MOTION_OFFSET)) * speed_bar
         time_step = float(mcfg.get("time_step", MOTION_TIME_STEP))
         t1 = float(mcfg.get("t1", MOTION_T1))
         t2 = float(mcfg.get("t2", MOTION_T2))
         gain = float(mcfg.get("gain", MOTION_GAIN))
         alpha = float(mcfg.get("alpha", MOTION_ALPHA))
         z = float(mcfg.get("z", MOTION_Z))
-        logger.info(green(
-            f"       -> move_speed_l speed_bar={speed_bar} offset={offset}"
-        ))
+        logger.info(green("       -> ZigZag start (speed_bar re-read each outer loop)"))
 
         for _outer in range(50000):
             if self.stop_requested:
                 break
+            mcfg = getattr(self, "_motion_cfg", {}) or {}
+            speed_bar = float(mcfg.get("speed_bar", MOTION_SPEED_BAR))
+            offset = float(mcfg.get("offset", MOTION_OFFSET)) * speed_bar
+            motions = [
+                [0, offset, offset, 0, 0, 0],
+                [offset, offset, 0, 0, 0, 0],
+                [offset, 0, -offset, 0, 0, 0],
+                [0, -offset, offset, 0, 0, 0],
+                [-offset, -offset, 0, 0, 0, 0],
+                [-offset, 0, -offset, 0, 0, 0],
+            ]
             self.controller.move_speed_l(
                 np.zeros(6), t1=t1, t2=t2, gain=gain, alpha=alpha
             )
@@ -131,14 +104,6 @@ class RobotApplication:
             self.controller.move_to_point(
                 np.array([_x, _y, z, _rx, _ry, _rz]), speed=100, acc=500
             )
-            motions = [
-                [0, offset, offset, 0, 0, 0],
-                [offset, offset, 0, 0, 0, 0],
-                [offset, 0, -offset, 0, 0, 0],
-                [0, -offset, offset, 0, 0, 0],
-                [-offset, -offset, 0, 0, 0, 0],
-                [-offset, 0, -offset, 0, 0, 0],
-            ]
             for _inner in range(20):
                 if self.stop_requested:
                     break
@@ -151,7 +116,10 @@ class RobotApplication:
                     time.sleep(time_step)
             if self.stop_requested:
                 break
-            logger.info(green(f"       -> Current TCP: {self.controller.get_tcp_position()}"))
+            logger.info(green(
+                f"       -> TCP={self.controller.get_tcp_position()} "
+                f"speed_bar={speed_bar} offset={offset}"
+            ))
 
         self.controller.move_speed_l(
             np.zeros(6), t1=t1, t2=t2, gain=gain, alpha=alpha

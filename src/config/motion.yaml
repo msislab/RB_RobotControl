@@ -1,5 +1,5 @@
 # ZigZag / move_speed_l GUI motion parameters
-speed_bar: 1.0          # 0.05–1.0 — scales move_speed_l
+speed_bar: 0.2          # 0.05–1.0 — scales move_speed_l
 home: [-300.0, -450.0, 350.0, 90.0, 0.0, 0.0]
 z: 350.0                # approach Z (mm)
 offset: 550.0           # base cartesian speed magnitude (mm/s) before speed_bar

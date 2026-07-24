@@ -4,12 +4,12 @@ robot_enabled: true  # false = cameras-only (no connect / motion)
 robot_routine: "zigzag"  # zigzag | ket (ket plays sequences/<robot_sequence>.yaml)
 robot_sequence: "ket"  # stem of src/config/sequences/<name>.yaml
 
-default_speed_bar: 0.2  # 50% speed
+default_speed_bar: 0.1  # 50% speed
 # default_operation_mode: "Real"
 default_operation_mode: "Simulation"
 
 collision_detection:
   mode: 1  # 0 = Off, 1 = On, 2 = On with threshold
-  threshold: 0.3  # mm
+  threshold: 0.8  # mm
 
 enable_waiting_ack: true

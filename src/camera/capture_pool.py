@@ -8,6 +8,7 @@ from typing import Any, List, Optional
 
 from loguru import logger
 
+from src.camera.device_fps import DeviceFpsStore
 from src.camera.frame_hub import FrameHub
 from src.camera.stereo_feed import StereoFeed
 
@@ -15,8 +16,13 @@ from src.camera.stereo_feed import StereoFeed
 class CapturePool:
     """Own thread per camera device; publishes into ``FrameHub``."""
 
-    def __init__(self, hub: FrameHub) -> None:
+    def __init__(
+        self,
+        hub: FrameHub,
+        device_fps: Optional[DeviceFpsStore] = None,
+    ) -> None:
         self.hub = hub
+        self.device_fps = device_fps if device_fps is not None else DeviceFpsStore()
         self._stop = threading.Event()
         self._threads: List[threading.Thread] = []
         self._stereo_feed: Optional[StereoFeed] = None
@@ -32,6 +38,7 @@ class CapturePool:
     ) -> None:
         self.stop()
         self._stop.clear()
+        self.device_fps.clear()
         period = 1.0 / max(1, int(target_fps))
         if camera is not None:
             self._threads.append(
@@ -70,6 +77,7 @@ class CapturePool:
             t.join(timeout=1.0)
         self._threads = []
         self.hub.clear()
+        self.device_fps.clear()
 
     def _rs_loop(self, camera: Any, period: float) -> None:
         while not self._stop.is_set():
@@ -79,8 +87,10 @@ class CapturePool:
             except Exception as e:
                 logger.warning("RealSense capture: {}", e)
                 frames = {}
+            fps_map = getattr(camera, "last_device_fps", {}) or {}
             for key, bgr in frames.items():
                 self.hub.publish(key, bgr)
+                self.device_fps.set(key, fps_map.get(key))
             self._sleep(period, t0)
 
     def _omron_loop(self, omron: Any, cid: str, period: float) -> None:
@@ -96,6 +106,8 @@ class CapturePool:
                 bgr = None
             if bgr is not None:
                 self.hub.publish(cid, bgr)
+                fps_map = getattr(omron, "last_device_fps", {}) or {}
+                self.device_fps.set(cid, fps_map.get(cid))
             self._sleep(omron_period, t0)
 
     @staticmethod

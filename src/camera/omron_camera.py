@@ -10,6 +10,7 @@ import numpy as np
 from loguru import logger
 
 from src.camera.omron_frame import read_all as frames_all, read_one as frame_one
+from src.camera.omron_fps import OmronResultingFps
 from src.camera.omron_gain import clamp_gain, get_omron_gain_limits, probe_gain_limits
 from src.camera.omron_net import auto_assign_ips
 from src.camera.omron_nodes import set_enumeration, set_numeric
@@ -30,7 +31,6 @@ _shared_system: Any = None
 _device_pool: List[DeviceRow] = []
 _pool_lock = Lock()
 
-# Re-export for callers (main / package).
 __all__ = [
     "OmronCameras",
     "get_omron_gain_limits",
@@ -67,9 +67,7 @@ def prepare_omron_network(
         api, _shared_system, ip_pool_cidr=ip_pool_cidr, preferred=list(preferred_ips or [])
     )
     _network_prepared = True
-    logger.info(
-        green(f"Omron IP assignment finished at startup ({time.monotonic() - t0:.2f}s)")
-    )
+    logger.info(green(f"Omron IP assignment finished at startup ({time.monotonic() - t0:.2f}s)"))
 
 
 def open_omron_devices_at_startup(
@@ -141,6 +139,8 @@ class OmronCameras:
         self.gain = float(gain)
         self.timeout_ms = timeout_ms
         self._devices: List[DeviceRow] = []
+        self._resulting_fps = OmronResultingFps()
+        self.last_device_fps: Dict[str, Optional[float]] = {}
 
     @property
     def camera_ids(self) -> List[str]:
@@ -153,7 +153,6 @@ class OmronCameras:
         with _pool_lock:
             empty = not _device_pool
         if empty:
-            # Config had omron.enabled=false at launch; open on first GUI enable.
             logger.warning("Omron pool empty — opening devices now (slow path)")
             open_omron_devices_at_startup(exposure=self.exposure, gain=self.gain)
         with _pool_lock:
@@ -166,6 +165,7 @@ class OmronCameras:
     def stop(self) -> None:
         """Detach from GUI only — pool keeps streaming for fast re-Start."""
         self._devices = []
+        self.last_device_fps = {}
         logger.info(yellow("Omron detached (devices stay open from startup)"))
 
     def set_exposure_gain(self, exposure: float, gain: float) -> None:
@@ -187,7 +187,12 @@ class OmronCameras:
     def read_one(self, cid: str) -> Optional[np.ndarray]:
         if not self._devices:
             raise RuntimeError("Omron cameras not attached")
-        return frame_one(self._devices, cid, timeout_ms=self.timeout_ms)
+        bgr = frame_one(self._devices, cid, timeout_ms=self.timeout_ms)
+        if bgr is not None:
+            self.last_device_fps[cid] = self._resulting_fps.touch(
+                _ensure_stapi(), self._devices, cid
+            )
+        return bgr
 
     def read_all(self) -> Dict[str, np.ndarray]:
         if not self._devices:

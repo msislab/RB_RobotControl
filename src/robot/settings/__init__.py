@@ -10,7 +10,9 @@ from src.robot.settings.collision import set_collision_mode, set_collision_onoff
 from src.robot.settings.vibration import set_vibrating_motion, enable_vibrating_motion, disable_vibrating_motion
 
 # Add functions as methods to RobotSettings class
-RobotSettings.set_speed_bar = lambda self, speed_bar: set_speed_bar(self, speed_bar)
+RobotSettings.set_speed_bar = lambda self, speed_bar, timeout=-1.0: set_speed_bar(
+    self, speed_bar, timeout=timeout
+)
 RobotSettings.set_speed_multiplier = lambda self, multiplier: set_speed_multiplier(self, multiplier)
 RobotSettings.set_acc_multiplier = lambda self, multiplier: set_acc_multiplier(self, multiplier)
 RobotSettings.set_speed_acc_j = lambda self, speed, acceleration: set_speed_acc_j(self, speed, acceleration)

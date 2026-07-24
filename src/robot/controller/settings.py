@@ -6,9 +6,9 @@ from src.robot.controller.base import RobotController
 def add_settings_methods(cls):
     """Add settings methods to RobotController class."""
     
-    def set_speed_bar(self, speed_bar: int):
-        """Set robot speed bar. See RobotSettings.set_speed_bar() for details."""
-        self.settings.set_speed_bar(speed_bar)
+    def set_speed_bar(self, speed_bar: float, *, timeout: float = -1.0):
+        """Set robot speed bar (0~1). Optional timeout for live GUI updates."""
+        self.settings.set_speed_bar(speed_bar, timeout=timeout)
     
     def set_speed_multiplier(self, multiplier: float):
         """Set speed multiplier. See RobotSettings.set_speed_multiplier() for details."""

@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 
 from src.camera.capture_pool import CapturePool
+from src.camera.device_fps import DeviceFpsStore
 from src.camera.frame_hub import FrameHub
 from src.camera.gui_preview import rs_keys, setup_start_preview
 from src.camera.gui_shell import add_preview_pane
@@ -78,20 +79,47 @@ def on_camera_start_ok(
     gui.status_var.set("Running…")
     logger.info(green(f"Start cfg={cfg} omron={omron_ids}"))
     if cfg.get("robot_enabled", True):
+        if not _robot_worker_ready(gui):
+            return
         gui._robot_thread = threading.Thread(target=gui._robot_worker, daemon=True)
         gui._robot_thread.start()
     else:
         logger.info(yellow("Robot disabled — cameras only"))
 
 
+_ROBOT_JOIN_TIMEOUT_S = 3.0
+
+
+def _robot_worker_ready(gui: Any) -> bool:
+    """Join a leftover robot worker after Stop; abort Start if still busy."""
+    prev = getattr(gui, "_robot_thread", None)
+    if prev is None or not prev.is_alive():
+        return True
+    logger.info(yellow(f"Waiting up to {_ROBOT_JOIN_TIMEOUT_S:.0f}s for previous robot worker…"))
+    prev.join(timeout=_ROBOT_JOIN_TIMEOUT_S)
+    if not prev.is_alive():
+        return True
+    gui._halt_run()
+    gui.settings.set_locked(False)
+    gui.start_btn.configure(state="normal")
+    gui.stop_btn.configure(state="disabled")
+    msg = "Previous robot worker still busy — Stop and retry"
+    gui.status_var.set(msg)
+    logger.warning(msg)
+    return False
+
+
 def start_preview_workers(gui: Any, cfg: Dict[str, Any], omron_ids: List[str]) -> None:
     hub = FrameHub()
     gui._frame_hub = hub
+    store = DeviceFpsStore()
+    gui._device_fps = store
+    gui._fps_board.device_fps = store
 
     def on_stereo_ready() -> None:
         gui.root.after(0, lambda: reveal_stereo_pane(gui))
 
-    cap = CapturePool(hub)
+    cap = CapturePool(hub, device_fps=store)
     gui._capture_pool = cap
     cap.start(
         camera=gui.camera,
@@ -138,6 +166,8 @@ def stop_preview_workers(gui: Any) -> None:
         cap.stop()
         gui._capture_pool = None
     gui._frame_hub = None
+    gui._device_fps = None
+    gui._fps_board.device_fps = None
 
 
 def finish_stop(gui: Any) -> None:
