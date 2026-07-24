@@ -107,6 +107,13 @@ CAMERA_WIDTH = int(_camera_config.get("width", 640))
 CAMERA_HEIGHT = int(_camera_config.get("height", 360))
 CAMERA_EXPOSURE = float(_camera_config.get("exposure", 100))
 CAMERA_GAIN = float(_camera_config.get("gain", 16))
+_stereo = _camera_config.get("stereo_depth", {}) or {}
+STEREO_ENABLED = bool(_stereo.get("enabled", False))
+STEREO_BACKEND = str(_stereo.get("backend", "pytorch"))
+STEREO_VARIANT = str(_stereo.get("variant", "23-36-37"))
+STEREO_VALID_ITERS = int(_stereo.get("valid_iters", 4))
+STEREO_Z_FAR = float(_stereo.get("z_far", 1.0))
+STEREO_ONNX_SIZE = str(_stereo.get("onnx_size", "576x960"))
 
 _omron_config = _config.get("omron", {}) or {}
 OMRON_ENABLED = bool(_omron_config.get("enabled", False))
@@ -155,6 +162,12 @@ __all__ = [
     "CAMERA_HEIGHT",
     "CAMERA_EXPOSURE",
     "CAMERA_GAIN",
+    "STEREO_ENABLED",
+    "STEREO_BACKEND",
+    "STEREO_VARIANT",
+    "STEREO_VALID_ITERS",
+    "STEREO_Z_FAR",
+    "STEREO_ONNX_SIZE",
     "OMRON_ENABLED",
     "OMRON_FPS",
     "OMRON_EXPOSURE",

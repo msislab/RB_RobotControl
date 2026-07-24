@@ -65,11 +65,17 @@ def setup_start_preview(
     omron_ids: Sequence[str],
     titles: Dict[str, str],
     add_pane,
+    stereo_on: bool = False,
 ) -> None:
     """Create Omron panes and show active RealSense + Omron keys."""
     for cid in omron_ids:
         add_pane(panel, labels, frames, cid, cid.upper(), titles)
-    show_keys(panel, frames, labels, rs_keys(view, camera_on) + list(omron_ids))
+    show_keys(
+        panel,
+        frames,
+        labels,
+        rs_keys(view, camera_on, stereo_on) + list(omron_ids),
+    )
 
 
 def show_keys(
@@ -106,7 +112,7 @@ def show_keys(
             labels[key].configure(image="", text="—")
 
 
-def rs_keys(view: str, camera_on: bool) -> List[str]:
+def rs_keys(view: str, camera_on: bool, stereo_on: bool = False) -> List[str]:
     if not camera_on:
         return []
     keys = ["color"]
@@ -114,4 +120,6 @@ def rs_keys(view: str, camera_on: bool) -> List[str]:
         keys.append("depth")
     if view == "rgb_depth_ir":
         keys.extend(["ir1", "ir2"])
+    if stereo_on:
+        keys.append("stereo_depth")
     return keys

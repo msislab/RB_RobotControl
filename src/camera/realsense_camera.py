@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pyrealsense2 as rs
+
+from src.camera.depth.stereo_cal import read_stereo_calibration
 
 VIEW_RGB = "rgb"
 VIEW_RGB_DEPTH = "rgb_depth"
@@ -25,6 +27,7 @@ class RealSenseCamera:
         height: int = 360,
         exposure: float = 100.0,
         gain: float = 16.0,
+        force_ir: bool = False,
     ) -> None:
         if view not in VALID_VIEWS:
             raise ValueError(f"view must be one of {VALID_VIEWS}, got {view!r}")
@@ -35,9 +38,12 @@ class RealSenseCamera:
         self.height = height
         self.exposure = float(exposure)
         self.gain = float(gain)
+        self.force_ir = bool(force_ir)
         self._pipeline: Optional[rs.pipeline] = None
         self._align: Optional[rs.align] = None
         self._color_sensor = None
+        self._stereo_fx: Optional[float] = None
+        self._stereo_baseline: Optional[float] = None
 
     @property
     def want_depth(self) -> bool:
@@ -45,7 +51,13 @@ class RealSenseCamera:
 
     @property
     def want_ir(self) -> bool:
-        return self.view == VIEW_RGB_DEPTH_IR
+        return self.view == VIEW_RGB_DEPTH_IR or self.force_ir
+
+    @property
+    def stereo_calibration(self) -> Optional[Tuple[float, float]]:
+        if self._stereo_fx is None or self._stereo_baseline is None:
+            return None
+        return self._stereo_fx, self._stereo_baseline
 
     def start(self) -> None:
         if self._pipeline is not None:
@@ -79,6 +91,11 @@ class RealSenseCamera:
         except Exception:
             self._color_sensor = None
         self.set_exposure_gain(self.exposure, self.gain)
+        self._stereo_fx = self._stereo_baseline = None
+        if self.want_ir:
+            self._stereo_fx, self._stereo_baseline = read_stereo_calibration(
+                pipeline, rs
+            )
 
     def set_exposure_gain(self, exposure: float, gain: float) -> None:
         """Apply manual exposure (µs) and gain while streaming."""
@@ -102,6 +119,7 @@ class RealSenseCamera:
         self._pipeline = None
         self._align = None
         self._color_sensor = None
+        self._stereo_fx = self._stereo_baseline = None
         if pipeline is not None:
             try:
                 pipeline.stop()
@@ -141,7 +159,7 @@ class RealSenseCamera:
                 return out
             out["depth"] = _depth_to_bgr(np.asanyarray(depth.get_data()))
 
-        if self.want_ir:
+        if ir1 and ir2:
             out["ir1"] = _gray_to_bgr(np.asanyarray(ir1.get_data()))
             out["ir2"] = _gray_to_bgr(np.asanyarray(ir2.get_data()))
         return out

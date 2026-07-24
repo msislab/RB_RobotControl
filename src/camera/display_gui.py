@@ -15,9 +15,10 @@ from src.camera.gui_preview import collect_frames, update_images
 from src.camera.gui_connect import begin_connect, schedule_launch_connect
 from src.camera.gui_robot_nav import home_pose, show_main_settings, show_robot_controls
 from src.camera.gui_robot_panel import RobotControlPanel
-from src.camera.gui_run import begin_start, finish_stop
+from src.camera.gui_run import begin_start, finish_stop, halt_stereo
 from src.camera.gui_shell import build_main_layout
 from src.camera.gui_start import validate_start
+from src.camera.gui_stereo import tick_stereo
 from src.camera.gui_theme import apply_theme, maximize_window
 from src.camera.omron_camera import OmronCameras, shutdown_omron_devices
 from src.camera.realsense_camera import RealSenseCamera
@@ -44,6 +45,8 @@ class CameraControlGui:
         self._tcp = self._joints = None
         self._live_job: Optional[str] = None
         self._robot_view = False
+        self._stereo = None
+        self._stereo_pane = False
         self.root = tk.Tk()
         self.root.title("RobotControl — cameras")
         self._style = apply_theme(self.root)
@@ -144,6 +147,7 @@ class CameraControlGui:
             self.root.after(0, lambda: self.status_var.set(f"Robot error: {e}"))
 
     def _stop_cameras(self) -> None:
+        halt_stereo(self)
         if self.camera is not None:
             self.camera.stop()
             self.camera = None
@@ -166,6 +170,7 @@ class CameraControlGui:
         try:
             frames = collect_frames(self.camera, self.omron)
             if frames:
+                tick_stereo(self, frames)
                 update_images(
                     self.panel, self._frames, self._labels, self._photo, frames
                 )

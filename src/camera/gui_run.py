@@ -10,6 +10,7 @@ from loguru import logger
 from src.camera.gui_preview import setup_start_preview
 from src.camera.gui_shell import add_preview_pane
 from src.camera.gui_start import start_cameras
+from src.camera.gui_stereo import start_stereo_worker, stop_stereo_worker
 from src.camera.omron_camera import OmronCameras
 from src.camera.realsense_camera import RealSenseCamera
 from src.utils.color import green, yellow
@@ -19,6 +20,8 @@ def begin_start(gui: Any, cfg: Dict[str, Any]) -> None:
     gui._fps = int(cfg["fps"])
     gui._start_cfg = cfg
     gui._starting = True
+    gui._stereo = None
+    gui._stereo_pane = False
     gui.settings.set_locked(True)
     gui.start_btn.configure(state="disabled")
     gui.stop_btn.configure(state="normal")
@@ -58,6 +61,7 @@ def on_camera_start_ok(
             om.stop()
         return
     gui.camera, gui.omron = cam, om
+    gui._stereo = start_stereo_worker(cam, cfg) if cam is not None else None
     gui._starting, gui._running = False, True
     gui._rs_on, gui._omron_n = cam is not None, len(omron_ids)
     gui._fps_board.reset()
@@ -65,7 +69,7 @@ def on_camera_start_ok(
     setup_start_preview(
         gui.panel, gui._frames, gui._labels,
         view=cfg["view"], camera_on=cam is not None, omron_ids=omron_ids,
-        titles=gui._pane_titles, add_pane=add_preview_pane,
+        titles=gui._pane_titles, add_pane=add_preview_pane, stereo_on=False,
     )
     gui.status_var.set("Running…")
     logger.info(green(f"Start cfg={cfg} omron={omron_ids}"))
@@ -91,3 +95,9 @@ def finish_stop(gui: Any) -> None:
         "Stopped — robot still connected" if connected else "Stopped — change settings, then Start"
     )
     logger.info(yellow("Stop requested (robot connection kept)"))
+
+
+def halt_stereo(gui: Any) -> None:
+    stop_stereo_worker(getattr(gui, "_stereo", None))
+    gui._stereo = None
+    gui._stereo_pane = False

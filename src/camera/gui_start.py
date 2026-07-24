@@ -17,6 +17,8 @@ def validate_start(cfg: Dict[str, Any]) -> Optional[str]:
     want_cam = bool(cfg.get("camera_enabled") or cfg.get("omron_enabled"))
     if not want_robot and not want_cam:
         return "Enable robot and/or a camera"
+    if cfg.get("stereo_enabled") and not cfg.get("camera_enabled"):
+        return "Stereo depth requires Enable RealSense"
     return None
 
 
@@ -41,6 +43,7 @@ def start_cameras(
             height=cfg["height"],
             exposure=cfg["camera_exposure"],
             gain=cfg["camera_gain"],
+            force_ir=bool(cfg.get("stereo_enabled")),
         )
         c.start()
         return c

@@ -7,3 +7,11 @@ width: 640
 height: 360
 exposure: 5000   # µs; live while running
 gain: 128
+# Fast-FoundationStereo from IR1/IR2 (checkbox overrides enabled at Start)
+stereo_depth:
+  enabled: false
+  backend: pytorch   # pytorch | onnx
+  variant: "23-36-37"
+  valid_iters: 4
+  z_far: 1.0
+  onnx_size: "576x960"   # 576x960 | 320x736 (onnx only)

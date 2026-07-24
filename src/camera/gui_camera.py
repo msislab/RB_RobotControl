@@ -31,7 +31,12 @@ def build_camera_section(
 
     rs_en = tk.BooleanVar(value=bool(d.get("camera_enabled", True)))
     om_en = tk.BooleanVar(value=bool(d.get("omron_enabled", False)))
-    for text, var in (("Enable RealSense", rs_en), ("Enable Omron", om_en)):
+    stereo_en = tk.BooleanVar(value=bool(d.get("stereo_enabled", False)))
+    for text, var in (
+        ("Enable RealSense", rs_en),
+        ("Enable Omron", om_en),
+        ("Enable stereo depth", stereo_en),
+    ):
         cb = ttk.Checkbutton(cam, text=text, variable=var)
         cb.pack(anchor=tk.W, pady=(0, 2))
         lockable.append(cb)
@@ -92,6 +97,12 @@ def build_camera_section(
     return {
         "camera_enabled": rs_en,
         "omron_enabled": om_en,
+        "stereo_enabled": stereo_en,
+        "stereo_backend": str(d.get("stereo_backend", "pytorch")),
+        "stereo_variant": str(d.get("stereo_variant", "23-36-37")),
+        "stereo_valid_iters": int(d.get("stereo_valid_iters", 4)),
+        "stereo_z_far": float(d.get("stereo_z_far", 1.0)),
+        "stereo_onnx_size": str(d.get("stereo_onnx_size", "576x960")),
         # RealSense stream size from camera.yaml (Omron uses sensor max ROI).
         "width": int(d.get("width", 640)),
         "height": int(d.get("height", 360)),
@@ -108,6 +119,12 @@ def camera_values(cam: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "camera_enabled": bool(cam["camera_enabled"].get()),
         "omron_enabled": bool(cam["omron_enabled"].get()),
+        "stereo_enabled": bool(cam["stereo_enabled"].get()),
+        "stereo_backend": cam["stereo_backend"],
+        "stereo_variant": cam["stereo_variant"],
+        "stereo_valid_iters": cam["stereo_valid_iters"],
+        "stereo_z_far": cam["stereo_z_far"],
+        "stereo_onnx_size": cam["stereo_onnx_size"],
         "width": int(cam["width"]),
         "height": int(cam["height"]),
         "fps": FPS_STEPS[int(cam["fps_idx"].get())],

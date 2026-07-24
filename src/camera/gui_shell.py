@@ -105,7 +105,13 @@ def build_main_layout(
     labels: Dict[str, tk.Label] = {}
     frames: Dict[str, ttk.LabelFrame] = {}
     titles: Dict[str, str] = {}
-    for key, title in (("color", "RS RGB"), ("depth", "Depth"), ("ir1", "IR1"), ("ir2", "IR2")):
+    for key, title in (
+        ("color", "RS RGB"),
+        ("depth", "Depth"),
+        ("ir1", "IR1"),
+        ("ir2", "IR2"),
+        ("stereo_depth", "Stereo depth"),
+    ):
         add_preview_pane(panel, labels, frames, key, title, titles)
 
     status = ttk.Frame(root, style="Surface.TFrame", padding=(12, 8))
