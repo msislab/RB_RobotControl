@@ -21,14 +21,15 @@ def set_speed_bar(settings: RobotSettings, speed_bar: int):
 
 def set_speed_multiplier(settings: RobotSettings, multiplier: float):
     """
-    Set speed multiplier.
+    Set overall speed multiplier on the robot (0~2, default 1.0).
     
     Args:
         settings: RobotSettings instance
         multiplier: Speed multiplier value
     """
     settings._check_connection()
-    logger.info(yellow(f"       -> Setting speed multiplier to {multiplier}"))
-    ret = settings.robot.set_speed_multiplier(settings.rc, int(multiplier))
-    logger.info(green(f"       -> Speed multiplier set to {int(multiplier)}"))
+    m = max(0.0, min(2.0, float(multiplier)))
+    logger.info(yellow(f"       -> Setting speed multiplier to {m}"))
+    ret = settings.robot.set_speed_multiplier(settings.rc, m)
+    logger.info(green(f"       -> Speed multiplier set to {m}, return: {ret}"))
 

@@ -1,0 +1,13 @@
+# Speed / acceleration multipliers and joint/cartesian limits
+speed_multiplier: 1
+acceleration_multiplier: 1
+
+joint:
+  speed: 180.0  # deg/s
+  acceleration: 180.0  # deg/s²
+
+cartesian:
+  linear_speed: 1000.0  # mm/s
+  linear_acceleration: 1000.0  # mm/s²
+  rotational_speed: 45.0  # deg/s
+  rotational_acceleration: 500.0  # deg/s²

@@ -4,27 +4,88 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
+from src.camera.gui_camera import build_camera_section, camera_values
 from src.camera.gui_motion import build_motion_section, home_from_vars
-from src.camera.gui_theme import FONT_LABEL, MUTED, SURFACE
-
-CAM_MIN = 240
-CAM_MAX_W = 1280
-CAM_MAX_H = 720
-FPS_STEPS: Tuple[int, ...] = (5, 15, 25, 30)
+from src.camera.gui_focus import bind_release_focus, release_focus
+from src.camera.gui_theme import FONT_LABEL
+from src.config.ket_store import list_sequences
 
 
 class SettingsPanel:
-    """Build editable settings; values applied only at Start."""
+    """Build editable settings; geometry applied at Start; exposure/gain live."""
 
-    def __init__(self, parent: tk.Misc, defaults: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        parent: tk.Misc,
+        defaults: Dict[str, Any],
+        *,
+        on_live_change: Optional[Callable[[], None]] = None,
+    ) -> None:
         self.frame = ttk.Frame(parent, style="Surface.TFrame")
         self._lockable: List[tk.Widget] = []
         d = defaults
 
         robot = ttk.LabelFrame(self.frame, text="Robot", style="Card.TLabelframe")
         robot.pack(fill=tk.X, pady=(0, 6))
+        self.robot_en = tk.BooleanVar(value=bool(d.get("robot_enabled", True)))
+        cb = ttk.Checkbutton(robot, text="Enable Robot", variable=self.robot_en)
+        cb.pack(anchor=tk.W, pady=(0, 2))
+        self._lockable.append(cb)
+
+        ttk.Label(robot, text="Routine", style="Muted.TLabel", font=FONT_LABEL).pack(
+            anchor=tk.W
+        )
+        routine_row = ttk.Frame(robot, style="Surface.TFrame")
+        routine_row.pack(fill=tk.X, pady=(0, 4))
+        self.routine_var = tk.StringVar(
+            value=str(d.get("robot_routine", "zigzag")).lower()
+        )
+        for label, val in (("ZigZag", "zigzag"), ("Sequence", "ket")):
+            r = ttk.Radiobutton(
+                routine_row,
+                text=label,
+                variable=self.routine_var,
+                value=val,
+                command=lambda: release_focus(self.frame),
+            )
+            r.pack(side=tk.LEFT, padx=(0, 12))
+            self._lockable.append(r)
+
+        ttk.Label(
+            robot, text="Sequence file", style="Muted.TLabel", font=FONT_LABEL
+        ).pack(anchor=tk.W)
+        names = list_sequences() or ["ket"]
+        cur = str(d.get("robot_sequence", "ket")).strip() or "ket"
+        if cur not in names:
+            names = sorted(set(names) | {cur})
+        self.sequence_var = tk.StringVar(value=cur)
+        self.sequence_box = ttk.Combobox(
+            robot, textvariable=self.sequence_var, values=names, state="readonly"
+        )
+        self.sequence_box.pack(fill=tk.X, pady=(0, 8))
+        bind_release_focus(self.sequence_box)
+        self._lockable.append(self.sequence_box)
+        self.sequence_loop = tk.BooleanVar(
+            value=bool(d.get("robot_sequence_loop", False))
+        )
+        self.sequence_merge = tk.BooleanVar(
+            value=bool(d.get("robot_sequence_merge", False))
+        )
+        # Side-by-side so vertical scroll/hit drift cannot toggle the wrong one.
+        opt_row = ttk.Frame(robot, style="Surface.TFrame")
+        opt_row.pack(fill=tk.X, pady=(0, 6))
+        loop_cb = ttk.Checkbutton(
+            opt_row, text="Loop sequence", variable=self.sequence_loop
+        )
+        loop_cb.pack(side=tk.LEFT, padx=(0, 16))
+        merge_cb = ttk.Checkbutton(
+            opt_row, text="Merge movements", variable=self.sequence_merge
+        )
+        merge_cb.pack(side=tk.LEFT)
+        self._lockable.extend((loop_cb, merge_cb))
+
         ttk.Label(
             robot, text="Controller IP", style="Muted.TLabel", font=FONT_LABEL
         ).pack(anchor=tk.W)
@@ -45,90 +106,16 @@ class SettingsPanel:
             self._lockable.append(r)
 
         self._motion = build_motion_section(self.frame, d, self._lockable)
-
-        cam = ttk.LabelFrame(self.frame, text="Camera", style="Card.TLabelframe")
-        cam.pack(fill=tk.X)
-        self.cam_enabled = tk.BooleanVar(value=bool(d.get("camera_enabled", True)))
-        cb = ttk.Checkbutton(cam, text="Enable RealSense", variable=self.cam_enabled)
-        cb.pack(anchor=tk.W, pady=(0, 4))
-        self._lockable.append(cb)
-
-        self.width_var = tk.IntVar(value=int(d.get("width", 640)))
-        self.height_var = tk.IntVar(value=int(d.get("height", 360)))
-        self.width_lbl = tk.StringVar()
-        self.height_lbl = tk.StringVar()
-        self._scale_block(cam, "Width", self.width_var, CAM_MIN, CAM_MAX_W, self.width_lbl)
-        self._scale_block(cam, "Height", self.height_var, CAM_MIN, CAM_MAX_H, self.height_lbl)
-
-        fps0 = int(d.get("fps", 30))
-        idx = FPS_STEPS.index(fps0) if fps0 in FPS_STEPS else len(FPS_STEPS) - 1
-        self.fps_idx = tk.IntVar(value=idx)
-        self.fps_lbl = tk.StringVar(value=str(FPS_STEPS[idx]))
-        ttk.Label(cam, text="FPS", style="Muted.TLabel", font=FONT_LABEL).pack(anchor=tk.W)
-        fps_row = ttk.Frame(cam, style="Surface.TFrame")
-        fps_row.pack(fill=tk.X, pady=(0, 4))
-        sc = ttk.Scale(fps_row, from_=0, to=len(FPS_STEPS) - 1, orient=tk.HORIZONTAL)
-        sc.configure(command=self._on_fps)
-        sc.set(idx)
-        sc.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Label(fps_row, textvariable=self.fps_lbl, width=4, style="Surface.TLabel").pack(
-            side=tk.LEFT, padx=(8, 0)
+        self._cam = build_camera_section(
+            self.frame, d, self._lockable, on_live_change=on_live_change
         )
-        self._lockable.append(sc)
-
-        ttk.Label(
-            cam, text="View mode", style="Muted.TLabel", font=FONT_LABEL
-        ).pack(anchor=tk.W)
-        view_row = ttk.Frame(cam, style="Surface.TFrame")
-        view_row.pack(fill=tk.X)
-        self.view_var = tk.StringVar(value=str(d.get("view", "rgb")))
-        for value, label in (
-            ("rgb", "RGB"),
-            ("rgb_depth", "RGB+Depth"),
-            ("rgb_depth_ir", "RGB+Depth+IR"),
-        ):
-            r = ttk.Radiobutton(view_row, text=label, variable=self.view_var, value=value)
-            r.pack(side=tk.LEFT, padx=(0, 8))
-            self._lockable.append(r)
 
         ttk.Label(
             self.frame,
-            text="Settings apply only when you press Start.",
+            text="Geometry applies on Start. Exposure/gain apply live.",
             style="Muted.TLabel",
             font=FONT_LABEL,
         ).pack(anchor=tk.W, pady=(6, 0))
-        self._surface = SURFACE
-        self._muted = MUTED
-
-    def _scale_block(
-        self, parent: tk.Misc, label: str, var: tk.IntVar,
-        lo: int, hi: int, lbl: tk.StringVar,
-    ) -> None:
-        ttk.Label(parent, text=label, style="Muted.TLabel", font=FONT_LABEL).pack(
-            anchor=tk.W
-        )
-        row = ttk.Frame(parent, style="Surface.TFrame")
-        row.pack(fill=tk.X, pady=(0, 4))
-        lbl.set(str(var.get()))
-
-        def _on(v: str, _var=var, _lbl=lbl) -> None:
-            n = max(lo, min(hi, int(float(v))))
-            n -= n % 8
-            _var.set(n)
-            _lbl.set(str(n))
-
-        sc = ttk.Scale(row, from_=lo, to=hi, orient=tk.HORIZONTAL, command=_on)
-        sc.set(var.get())
-        sc.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Label(row, textvariable=lbl, width=5, style="Surface.TLabel").pack(
-            side=tk.LEFT, padx=(8, 0)
-        )
-        self._lockable.append(sc)
-
-    def _on_fps(self, value: str) -> None:
-        idx = max(0, min(len(FPS_STEPS) - 1, int(round(float(value)))))
-        self.fps_idx.set(idx)
-        self.fps_lbl.set(str(FPS_STEPS[idx]))
 
     def set_locked(self, locked: bool) -> None:
         state = tk.DISABLED if locked else tk.NORMAL
@@ -138,27 +125,47 @@ class SettingsPanel:
             except tk.TclError:
                 pass
 
+    def set_sequence(self, name: str) -> None:
+        cur = str(name).strip() or "ket"
+        names = list(self.sequence_box["values"]) or []
+        if cur not in names:
+            names = sorted(set(names) | {cur})
+            self.sequence_box["values"] = names
+        self.sequence_var.set(cur)
+
+    def refresh_sequences(self) -> None:
+        names = list_sequences() or ["ket"]
+        cur = self.sequence_var.get().strip() or "ket"
+        if cur not in names:
+            names = sorted(set(names) | {cur})
+        self.sequence_box["values"] = names
+        self.sequence_var.set(cur)
+
     def values(self) -> Dict[str, Any]:
         m = self._motion
-        return {
+        out = {
+            "robot_enabled": bool(self.robot_en.get()),
+            "robot_routine": self.routine_var.get().strip().lower(),
+            "robot_sequence": self.sequence_var.get().strip() or "ket",
+            "robot_sequence_loop": bool(self.sequence_loop.get()),
+            "robot_sequence_merge": bool(self.sequence_merge.get()),
             "robot_ip": self.ip_var.get().strip(),
             "operation_mode": self.mode_var.get(),
-            "joint_speed": float(m["joint_speed"]),
-            "joint_acc": float(m["joint_acc"]),
-            "linear_speed": float(m["linear_speed"]),
-            "linear_acc": float(m["linear_acc"]),
+            "joint_speed": float(m["joint_speed"].get()),
+            "joint_acc": float(m["joint_acc"].get()),
+            "linear_speed": float(m["linear_speed"].get()),
+            "linear_acc": float(m["linear_acc"].get()),
+            "speed_multiplier": float(m["speed_multiplier"].get()),
+            "acceleration_multiplier": float(m["acceleration_multiplier"].get()),
             "speed_bar": float(m["speed_bar"].get()),
             "offset": float(m["offset"].get()),
             "time_step": float(m["time_step"].get()),
-            "t1": float(m["t1"].get()),
-            "t2": float(m["t2"].get()),
-            "gain": float(m["gain"].get()),
-            "alpha": float(m["alpha"].get()),
+            "t1": float(m["t1"]),
+            "t2": float(m["t2"]),
+            "gain": float(m["gain"]),
+            "alpha": float(m["alpha"]),
             "home": home_from_vars(m["home_vars"]),
-            "z": float(m["z"].get()),
-            "camera_enabled": bool(self.cam_enabled.get()),
-            "width": int(self.width_var.get()),
-            "height": int(self.height_var.get()),
-            "fps": FPS_STEPS[int(self.fps_idx.get())],
-            "view": self.view_var.get(),
+            "z": float(m["z"]),
         }
+        out.update(camera_values(self._cam))
+        return out

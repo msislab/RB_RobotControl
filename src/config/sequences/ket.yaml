@@ -1,0 +1,132 @@
+points:
+  Home_L:
+    mode: tcp
+    pose:
+    - -300.03
+    - -450.0
+    - 349.97
+    - 90.0
+    - -0.0
+    - 0.0
+  Home_J:
+    mode: joint
+    pose:
+    - 37.17
+    - 5.7
+    - -93.86
+    - -1.85
+    - -89.95
+    - 52.81
+  P1:
+    mode: joint
+    pose:
+    - 25.17
+    - 5.7
+    - -93.86
+    - -1.85
+    - -89.95
+    - 52.81
+  P_last:
+    mode: joint
+    pose:
+    - 37.17
+    - 5.71
+    - -93.86
+    - -1.85
+    - -89.95
+    - 52.81
+  P2:
+    mode: joint
+    pose:
+    - 75.17
+    - 5.7
+    - -93.86
+    - -1.85
+    - -89.95
+    - 52.81
+  Pickup:
+    mode: tcp
+    pose:
+    - -300.0
+    - 540.0
+    - -280.0
+    - 90.0
+    - -0.0
+    - -0.0
+  Pickup_High:
+    mode: tcp
+    pose:
+    - -300.0
+    - 540.0
+    - 200.0
+    - 90.0
+    - -0.0
+    - 0.0
+  Mid:
+    mode: tcp
+    pose:
+    - -300.0
+    - -100.0
+    - 350.0
+    - 90.0
+    - -0.0
+    - 0.0
+  Mid_low:
+    mode: tcp
+    pose:
+    - -372.23
+    - -100.0
+    - 34.91
+    - 90.0
+    - 0.0
+    - 0.0
+  Drop_High:
+    mode: joint
+    pose:
+    - 90.0
+    - 0.0
+    - -90.0
+    - 0.0
+    - -90.0
+    - -180.0
+  Drop_Low:
+    mode: tcp
+    pose:
+    - 111.51
+    - -419.24
+    - -185.8
+    - 90.0
+    - -0.05
+    - -179.98
+  Drop_High_L:
+    mode: tcp
+    pose:
+    - 111.51
+    - -419.24
+    - 339.48
+    - 90.0
+    - -0.05
+    - -179.98
+  Mid_J:
+    mode: joint
+    pose:
+    - -18.59
+    - 30.76
+    - -110.41
+    - -10.35
+    - -89.94
+    - 108.58
+sequence:
+- Home_L
+- Home_J
+- Mid
+- Pickup_High
+- Pickup
+- Pickup_High
+- Mid
+- Mid_low
+- Mid
+- Drop_High
+- Drop_Low
+- Drop_High_L
+- Home_J

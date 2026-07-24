@@ -8,6 +8,34 @@ from typing import Any, Dict, List
 
 from src.camera.gui_theme import FONT_LABEL
 
+_MULT_CHOICES = (1.0, 1.5, 2.0)
+
+
+def _snap_mult(value: Any, default: float = 1.0) -> float:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return default
+    return min(_MULT_CHOICES, key=lambda x: abs(x - v))
+
+
+def _mult_radios(
+    parent: tk.Misc,
+    title: str,
+    key: str,
+    defaults: Dict[str, Any],
+    lockable: List[tk.Widget],
+) -> tk.DoubleVar:
+    ttk.Label(parent, text=title, style="Muted.TLabel", font=FONT_LABEL).pack(anchor=tk.W)
+    var = tk.DoubleVar(value=_snap_mult(defaults.get(key, 1.0)))
+    row = ttk.Frame(parent, style="Surface.TFrame")
+    row.pack(fill=tk.X, pady=(0, 4))
+    for val in _MULT_CHOICES:
+        r = ttk.Radiobutton(row, text=str(val).rstrip("0").rstrip("."), variable=var, value=val)
+        r.pack(side=tk.LEFT, padx=(0, 12))
+        lockable.append(r)
+    return var
+
 
 def build_motion_section(
     parent: tk.Misc,
@@ -33,7 +61,39 @@ def build_motion_section(
         return var
 
     ttk.Label(
-        motion, text="Speed bar (scales move_speed_l)", style="Muted.TLabel", font=FONT_LABEL
+        motion,
+        text="Sequence / Move speeds (used by Sequence + MoveXB)",
+        style="Muted.TLabel",
+        font=FONT_LABEL,
+    ).pack(anchor=tk.W)
+    spd_grid = ttk.Frame(motion, style="Surface.TFrame")
+    spd_grid.pack(fill=tk.X, pady=(0, 4))
+
+    def _spd(r: int, c: int, label: str, key: str, default: float) -> tk.DoubleVar:
+        cell = ttk.Frame(spd_grid, style="Surface.TFrame")
+        cell.grid(row=r, column=c, sticky="ew", padx=(0, 6), pady=2)
+        spd_grid.columnconfigure(c, weight=1)
+        ttk.Label(cell, text=label, style="Muted.TLabel", font=FONT_LABEL).pack(anchor=tk.W)
+        var = tk.DoubleVar(value=float(defaults.get(key, default)))
+        e = ttk.Entry(cell, textvariable=var, width=12)
+        e.pack(fill=tk.X, pady=(2, 0))
+        lockable.append(e)
+        return var
+
+    joint_speed = _spd(0, 0, "Joint speed (deg/s)", "joint_speed", 180.0)
+    joint_acc = _spd(0, 1, "Joint acc (deg/s²)", "joint_acc", 180.0)
+    linear_speed = _spd(1, 0, "Linear speed (mm/s)", "linear_speed", 1000.0)
+    linear_acc = _spd(1, 1, "Linear acc (mm/s²)", "linear_acc", 1000.0)
+
+    speed_mult = _mult_radios(
+        motion, "Speed multiplier", "speed_multiplier", defaults, lockable
+    )
+    acc_mult = _mult_radios(
+        motion, "Acc multiplier", "acceleration_multiplier", defaults, lockable
+    )
+
+    ttk.Label(
+        motion, text="Speed bar (scales ZigZag move_speed_l)", style="Muted.TLabel", font=FONT_LABEL
     ).pack(anchor=tk.W)
     bar_row = ttk.Frame(motion, style="Surface.TFrame")
     bar_row.pack(fill=tk.X, pady=(0, 4))
@@ -56,10 +116,6 @@ def build_motion_section(
 
     offset = _float(0, 0, "Offset (mm/s)", "offset", 600.0)
     time_step = _float(0, 1, "Time step (s)", "time_step", 0.1)
-    t1 = _float(1, 0, "t1 (s)", "t1", 0.08)
-    t2 = _float(1, 1, "t2 (s)", "t2", 0.03)
-    gain = _float(2, 0, "gain", "gain", 0.5)
-    alpha = _float(2, 1, "alpha", "alpha", 0.05)
 
     ttk.Label(
         motion, text="Home TCP", style="Muted.TLabel", font=FONT_LABEL
@@ -82,23 +138,23 @@ def build_motion_section(
         lockable.append(e)
         home_vars.append(var)
 
-    z_var = _float(3, 0, "Approach Z", "z", 350.0)
-
     return {
         "speed_bar": speed_bar,
         "offset": offset,
         "time_step": time_step,
-        "t1": t1,
-        "t2": t2,
-        "gain": gain,
-        "alpha": alpha,
         "home_vars": home_vars,
-        "z": z_var,
-        # Still applied on Start from config.yaml (not shown in GUI).
-        "joint_speed": float(defaults.get("joint_speed", 180.0)),
-        "joint_acc": float(defaults.get("joint_acc", 180.0)),
-        "linear_speed": float(defaults.get("linear_speed", 1000.0)),
-        "linear_acc": float(defaults.get("linear_acc", 1000.0)),
+        "joint_speed": joint_speed,
+        "joint_acc": joint_acc,
+        "linear_speed": linear_speed,
+        "linear_acc": linear_acc,
+        "speed_multiplier": speed_mult,
+        "acceleration_multiplier": acc_mult,
+        # ZigZag-only defaults (not shown in menu) — from motion.yaml via defaults.
+        "t1": float(defaults.get("t1", 0.08)),
+        "t2": float(defaults.get("t2", 0.03)),
+        "gain": float(defaults.get("gain", 0.5)),
+        "alpha": float(defaults.get("alpha", 0.05)),
+        "z": float(defaults.get("z", 350.0)),
     }
 
 

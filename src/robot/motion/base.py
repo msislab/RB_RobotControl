@@ -1,6 +1,5 @@
 """Base robot motion operations."""
 
-import time
 from typing import Optional
 import numpy as np
 import rbpodo as rb
@@ -9,6 +8,8 @@ from src.utils.color import yellow, green
 from src.robot.motion.servo import move_servo_j, move_servo_l
 from src.robot.motion.speed import move_speed_j, move_speed_l
 from src.robot.motion.jog import jog_robot_j, jog_robot_l
+from src.robot.motion.wait import wait_move_done
+from src.robot.motion.xb import run_move_xb
 
 
 class RobotMotion:
@@ -29,7 +30,7 @@ class RobotMotion:
         """Check if robot is connected."""
         if self.robot is None or self.rc is None:
             raise RuntimeError("Robot not connected. Call connect() first.")
-    
+
     def move_to_point(self, point: np.ndarray, speed: float = 100, acc: float = 1000):
         """
         Move robot to specified point and wait for completion.
@@ -44,11 +45,21 @@ class RobotMotion:
         logger.info(yellow(f"       Moving robot to point: {point}"))
         ret = self.robot.move_l(self.rc, point, speed, acc, return_on_err=False)
         logger.info(yellow(f"       -> move_l return: {ret}"))
-        
-        while self.robot.get_robot_state(self.rc)[1] == rb.RobotState.Moving:
-            time.sleep(0.001)
-        
+        wait_move_done(self.robot, self.rc)
         logger.info(green(f"       -> Robot moved to point: {point}"))
+
+    def move_j(self, joints: np.ndarray, speed: float = 60, acc: float = 80):
+        """Move joints with MoveJ and wait for completion."""
+        self._check_connection()
+        logger.info(yellow(f"       Moving robot joints: {joints}"))
+        ret = self.robot.move_j(self.rc, joints, speed, acc, return_on_err=False)
+        logger.info(yellow(f"       -> move_j return: {ret}"))
+        wait_move_done(self.robot, self.rc)
+        logger.info(green(f"       -> Robot moved joints: {joints}"))
+
+    def move_xb(self, steps, **kwargs) -> None:
+        """Blended MoveXB path (mixed TCP/joint). See run_move_xb()."""
+        run_move_xb(self, steps, **kwargs)
     
     def move_servo_j(self, joints: np.ndarray, t1: float = 0.002, t2: float = 0.1,
                      gain: float = 1.0, alpha: float = 0.5):

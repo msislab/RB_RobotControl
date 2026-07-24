@@ -68,8 +68,8 @@ class ConnectionManager:
         
         self.settings.set_operation_mode(operation_mode)
         self.settings.set_speed_bar(speed_bar)
-        # self.settings.set_speed_multiplier(speed_multiplier)
-        # self.settings.set_acc_multiplier(acc_multiplier)
+        self.settings.set_speed_multiplier(speed_multiplier)
+        self.settings.set_acc_multiplier(acc_multiplier)
 
         self.settings.set_speed_acc_j(speed_j, acceleration_j)
         self.settings.set_speed_acc_l(speed_l, acceleration_l)

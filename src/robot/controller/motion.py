@@ -13,6 +13,18 @@ def add_motion_methods(cls):
         if not check_collision_before_motion(self.connection.data_collector, "move_to_point"):
             return
         self.motion.move_to_point(point, speed, acc)
+
+    def move_j(self, joints: np.ndarray, speed: float = 60, acc: float = 80):
+        """Move joints (MoveJ). See RobotMotion.move_j() for details."""
+        if not check_collision_before_motion(self.connection.data_collector, "move_j"):
+            return
+        self.motion.move_j(joints, speed, acc)
+
+    def move_xb(self, steps, **kwargs):
+        """MoveXB blended path. See RobotMotion.move_xb()."""
+        if not check_collision_before_motion(self.connection.data_collector, "move_xb"):
+            return
+        self.motion.move_xb(steps, **kwargs)
     
     def move_servo_j(self, joints: np.ndarray, t1: float = 0.002, t2: float = 0.1,
                      gain: float = 1.0, alpha: float = 0.5):
@@ -62,6 +74,8 @@ def add_motion_methods(cls):
     
     # Attach methods to class
     cls.move_to_point = move_to_point
+    cls.move_j = move_j
+    cls.move_xb = move_xb
     cls.move_servo_j = move_servo_j
     cls.move_servo_l = move_servo_l
     cls.move_speed_j = move_speed_j

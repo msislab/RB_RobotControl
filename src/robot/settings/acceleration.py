@@ -7,16 +7,17 @@ from src.robot.settings.base import RobotSettings
 
 def set_acc_multiplier(settings: RobotSettings, multiplier: float):
     """
-    Set acceleration multiplier.
+    Set overall acceleration multiplier on the robot (0~2, default 1.0).
     
     Args:
         settings: RobotSettings instance
         multiplier: Acceleration multiplier value
     """
     settings._check_connection()
-    logger.info(yellow(f"       -> Setting acceleration multiplier to {multiplier}"))
-    ret = settings.robot.set_acc_multiplier(settings.rc, multiplier)
-    logger.info(green(f"       -> Acceleration multiplier set, return: {ret}"))
+    m = max(0.0, min(2.0, float(multiplier)))
+    logger.info(yellow(f"       -> Setting acceleration multiplier to {m}"))
+    ret = settings.robot.set_acc_multiplier(settings.rc, m)
+    logger.info(green(f"       -> Acceleration multiplier set to {m}, return: {ret}"))
 
 
 def set_speed_acc_j(settings: RobotSettings, speed: float, acceleration: float):

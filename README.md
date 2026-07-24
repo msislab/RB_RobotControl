@@ -34,17 +34,25 @@ RobotControl_RB/
 1. Ensure you have Python 3.x installed
 2. Install required dependencies:
    ```bash
-   pip install rbpodo numpy loguru pyyaml
+   pip install -r requirements.txt
    ```
 
+   `rbpodo>=0.16.14` is required for MoveXB (`move_xb_*`).
 ## Configuration
 
-Edit `src/config/config.yaml` to configure your robot:
+Edit the per-component YAML files under `src/config/`:
 
-- **robot_ip**: IP address of your robot controller
-- **default_operation_mode**: "Real" or "Simulation"
-- **speed/acceleration settings**: Configure motion parameters
-- **collision_detection**: Enable/configure collision detection
+| File | Contents |
+|------|----------|
+| `robot.yaml` | IP, enable, routine, operation mode, collision |
+| `speed.yaml` | Joint / cartesian speed & accel |
+| `motion.yaml` | ZigZag / GUI motion parameters |
+| `camera.yaml` | RealSense |
+| `omron.yaml` | Omron GigE |
+| `sequences/<name>.yaml` | Taught sequence files (default `ket`) |
+| `logger.yaml` | Logging |
+
+`robot_sequence` in `robot.yaml` picks which `sequences/<name>.yaml` runs when routine is Sequence. Create more files from the robot-control menu (**New**).
 
 ## Usage
 

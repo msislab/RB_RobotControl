@@ -23,6 +23,8 @@ class RealSenseCamera:
         serial: Optional[str] = None,
         width: int = 640,
         height: int = 360,
+        exposure: float = 100.0,
+        gain: float = 16.0,
     ) -> None:
         if view not in VALID_VIEWS:
             raise ValueError(f"view must be one of {VALID_VIEWS}, got {view!r}")
@@ -31,8 +33,11 @@ class RealSenseCamera:
         self.serial = serial
         self.width = width
         self.height = height
+        self.exposure = float(exposure)
+        self.gain = float(gain)
         self._pipeline: Optional[rs.pipeline] = None
         self._align: Optional[rs.align] = None
+        self._color_sensor = None
 
     @property
     def want_depth(self) -> bool:
@@ -63,14 +68,40 @@ class RealSenseCamera:
             config.enable_stream(
                 rs.stream.infrared, 2, self.width, self.height, rs.format.y8, self.fps
             )
-        pipeline.start(config)
+        profile = pipeline.start(config)
         self._pipeline = pipeline
         self._align = rs.align(rs.stream.color) if self.want_depth else None
+        try:
+            for sensor in profile.get_device().query_sensors():
+                if sensor.supports(rs.option.enable_auto_exposure):
+                    self._color_sensor = sensor
+                    break
+        except Exception:
+            self._color_sensor = None
+        self.set_exposure_gain(self.exposure, self.gain)
+
+    def set_exposure_gain(self, exposure: float, gain: float) -> None:
+        """Apply manual exposure (µs) and gain while streaming."""
+        self.exposure = float(exposure)
+        self.gain = float(gain)
+        sensor = self._color_sensor
+        if sensor is None:
+            return
+        try:
+            if sensor.supports(rs.option.enable_auto_exposure):
+                sensor.set_option(rs.option.enable_auto_exposure, 0)
+            if sensor.supports(rs.option.exposure):
+                sensor.set_option(rs.option.exposure, self.exposure)
+            if sensor.supports(rs.option.gain):
+                sensor.set_option(rs.option.gain, self.gain)
+        except Exception:
+            pass
 
     def stop(self) -> None:
         pipeline = self._pipeline
         self._pipeline = None
         self._align = None
+        self._color_sensor = None
         if pipeline is not None:
             try:
                 pipeline.stop()
@@ -81,14 +112,18 @@ class RealSenseCamera:
         """Return dict with keys among: color, depth, ir1, ir2 (BGR/uint8 for display)."""
         if self._pipeline is None:
             raise RuntimeError("Camera not started")
-        frames = self._pipeline.wait_for_frames(2000)
-        # IR from raw frameset (align can drop IR on some profiles).
+        # Short wait — miss a tick rather than freeze the Tk UI for seconds.
+        frames = self._pipeline.poll_for_frames()
+        if not frames:
+            frames = self._pipeline.wait_for_frames(100)
+        if not frames:
+            return {}
         ir1 = ir2 = None
         if self.want_ir:
             ir1 = frames.get_infrared_frame(1)
             ir2 = frames.get_infrared_frame(2)
             if not ir1 or not ir2:
-                raise RuntimeError("Missing IR1/IR2 frame")
+                return {}
 
         view = frames
         if self._align is not None:
@@ -97,13 +132,13 @@ class RealSenseCamera:
         out: Dict[str, np.ndarray] = {}
         color = view.get_color_frame()
         if not color:
-            raise RuntimeError("No color frame")
+            return {}
         out["color"] = np.asanyarray(color.get_data())
 
         if self.want_depth:
             depth = view.get_depth_frame()
             if not depth:
-                raise RuntimeError("No depth frame")
+                return out
             out["depth"] = _depth_to_bgr(np.asanyarray(depth.get_data()))
 
         if self.want_ir:

@@ -87,10 +87,16 @@ def task_play(settings: RobotSettings):
     logger.info(green(f"       -> Task playing, return: {ret}"))
 
 
-def task_resume(settings: RobotSettings):
-    """Resume the paused task."""
+def task_resume(settings: RobotSettings, collision: bool = False):
+    """Resume the paused task.
+
+    Args:
+        collision: If True, resume after collision stop (``task resume_b``).
+            If False, normal resume (``task resume_a``).
+    """
     settings._check_connection()
-    logger.info(yellow("       -> Resuming task"))
-    ret = settings.robot.task_resume(settings.rc)
-    logger.info(green(f"       -> Task resumed, return: {ret}"))
+    kind = "collision" if collision else "normal"
+    logger.info(yellow(f"       -> Resuming task ({kind})"))
+    ret = settings.robot.task_resume(settings.rc, collision)
+    logger.info(green(f"       -> Task resumed ({kind}), return: {ret}"))
 

@@ -1,0 +1,10 @@
+# ZigZag / move_speed_l GUI motion parameters
+speed_bar: 1.0          # 0.05–1.0 — scales move_speed_l
+home: [-300.0, -450.0, 350.0, 90.0, 0.0, 0.0]
+z: 350.0                # approach Z (mm)
+offset: 550.0           # base cartesian speed magnitude (mm/s) before speed_bar
+time_step: 0.1          # sleep between move_speed_l segments (s)
+t1: 0.08                # arrival time (s)
+t2: 0.03                # hold time after arrival (s)
+gain: 0.5               # speed tracking gain
+alpha: 0.05             # low-pass filter gain

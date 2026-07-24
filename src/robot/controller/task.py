@@ -22,9 +22,9 @@ def add_task_methods(cls):
         """Play/start the current task. See RobotSettings.task_play() for details."""
         self.settings.task_play()
     
-    def task_resume(self):
-        """Resume the paused task. See RobotSettings.task_resume() for details."""
-        self.settings.task_resume()
+    def task_resume(self, collision: bool = False):
+        """Resume the paused task. collision=True resumes after a collision stop."""
+        self.settings.task_resume(collision)
     
     # Attach methods to class
     cls.task_stop = task_stop

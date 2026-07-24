@@ -1,5 +1,6 @@
 """Main application class that orchestrates robot operations."""
 
+import threading
 import time
 import numpy as np
 import rbpodo as rb
@@ -21,46 +22,61 @@ class RobotApplication:
         self.controller = RobotController(robot_ip)
         self.running = False
         self.stop_requested = False
+        self._connect_lock = threading.Lock()
 
     def request_stop(self) -> None:
         """Ask the motion loop to exit (safe from GUI / other threads)."""
         self.stop_requested = True
         self.running = False
 
-    def setup_with_settings(self, cfg: dict) -> None:
-        """Connect (or reconnect) and apply GUI settings, then mark running."""
-        ip = (cfg.get("robot_ip") or self.robot_ip).strip()
-        need_connect = not getattr(self, "_setup_done", False) or ip != self.robot_ip
-        if need_connect:
-            if getattr(self, "_setup_done", False):
-                try:
-                    self.controller.stop()
-                except Exception as e:
-                    logger.warning("Stop before reconnect: {}", e)
-            self.robot_ip = ip
-            self.controller = RobotController(ip)
-            self.controller.connect()
-            self.controller.initialize()
-            self._setup_done = True
-        else:
-            self.running = True
+    def connect_with_settings(self, cfg: dict) -> None:
+        """Connect/reconnect and apply settings; leave motion idle (no routine)."""
+        with self._connect_lock:
+            ip = (cfg.get("robot_ip") or self.robot_ip).strip()
+            need_connect = not getattr(self, "_setup_done", False) or ip != self.robot_ip
+            if need_connect:
+                if getattr(self, "_setup_done", False):
+                    try:
+                        self.controller.stop()
+                    except Exception as e:
+                        logger.warning("Stop before reconnect: {}", e)
+                self.robot_ip = ip
+                self.controller = RobotController(ip)
+                self.controller.connect()
+                self.controller.initialize()
+                self._setup_done = True
 
-        mode = cfg.get("operation_mode")
-        if mode:
-            self.controller.settings.set_operation_mode(mode)
-        self.controller.set_speed_acc_j(
-            float(cfg.get("joint_speed", 180.0)),
-            float(cfg.get("joint_acc", 180.0)),
-        )
-        self.controller.set_speed_acc_l(
-            float(cfg.get("linear_speed", 1000.0)),
-            float(cfg.get("linear_acc", 1000.0)),
-        )
-        # Robot API speed bar stays at config default_speed_bar (historically 0.5).
-        # GUI motion.speed_bar only scales move_speed_l cartesian speeds.
-        from src.config.loader import DEFAULT_SPEED_BAR
-        self.controller.set_speed_bar(float(DEFAULT_SPEED_BAR))
-        self._motion_cfg = dict(cfg)
+            mode = cfg.get("operation_mode")
+            if mode:
+                self.controller.settings.set_operation_mode(mode)
+            self.controller.set_speed_acc_j(
+                float(cfg.get("joint_speed", 180.0)),
+                float(cfg.get("joint_acc", 180.0)),
+            )
+            self.controller.set_speed_acc_l(
+                float(cfg.get("linear_speed", 1000.0)),
+                float(cfg.get("linear_acc", 1000.0)),
+            )
+            self.controller.set_speed_multiplier(
+                float(cfg.get("speed_multiplier", 1.0))
+            )
+            self.controller.set_acc_multiplier(
+                float(cfg.get("acceleration_multiplier", 1.0))
+            )
+            from src.config.loader import DEFAULT_SPEED_BAR
+            self.controller.set_speed_bar(float(DEFAULT_SPEED_BAR))
+            try:
+                self.controller.task_resume(collision=True)
+            except Exception as e:
+                logger.warning("Collision resume on connect failed: {}", e)
+            self._motion_cfg = dict(cfg)
+            self.running = False
+            self.stop_requested = False
+            logger.info(green("       -> Robot connected (idle)"))
+
+    def setup_with_settings(self, cfg: dict) -> None:
+        """Connect (or reconnect), apply settings, then mark motion running."""
+        self.connect_with_settings(cfg)
         self.running = True
         self.stop_requested = False
         logger.info(green("       -> Robot application setup complete"))
@@ -75,7 +91,7 @@ class RobotApplication:
         logger.info(green("       -> Robot application setup complete"))
     
     def execute_motion_sequence(self):
-        """Execute the main motion sequence (params from GUI/config motion)."""
+        """ZigZag routine — move_speed_l path (params from GUI/config motion)."""
         if not self.running and not self.stop_requested:
             raise RuntimeError("Application not set up. Call setup() first.")
         self.running = True
@@ -121,7 +137,7 @@ class RobotApplication:
                 [-offset, -offset, 0, 0, 0, 0],
                 [-offset, 0, -offset, 0, 0, 0],
             ]
-            for _inner in range(100):
+            for _inner in range(20):
                 if self.stop_requested:
                     break
                 for m in motions:
@@ -164,17 +180,16 @@ class RobotApplication:
     def shutdown(self):
         """Shutdown the application and cleanup resources."""
         self.running = False
-        
-        # Check for errors
+        if not getattr(self, "_setup_done", False):
+            logger.info(red("Robot was not connected — skip controller shutdown"))
+            return
         try:
             self.controller.check_errors()
         except Exception as e:
             logger.error("Error during shutdown: {}", e)
-        
-        # Stop robot
-        self.controller.stop()
-
-        
-        logger.info(red(""))
+        try:
+            self.controller.stop()
+        except Exception as e:
+            logger.error("Stop during shutdown: {}", e)
         logger.info(red("Robot application shutdown complete"))
 
