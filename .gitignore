@@ -40,6 +40,10 @@ Thumbs.db
 # Logs
 *.log
 
+# Large stereo model weights (keep locally; too big for GitHub)
+data/Fast-FoundationStereo_weights/**/*.onnx
+data/Fast-FoundationStereo_weights/**/*.pth
+
 # Agent / Cursor — local only (.githooks/pre-commit also unstages these)
 .cursor/
 .cursorrules
