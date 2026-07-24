@@ -8,6 +8,12 @@ import numpy as np
 from loguru import logger
 
 from src.config.ket_store import load_ket, resolve_path
+from src.config.loader import (
+    XB_JOINT_ACCELERATION,
+    XB_JOINT_SPEED,
+    XB_LINEAR_ACCELERATION,
+    XB_LINEAR_SPEED,
+)
 from src.utils.color import green, yellow
 
 ROUTINE_ZIGZAG = "zigzag"
@@ -40,12 +46,23 @@ def _load_steps(sequence_name: str) -> List[Tuple[str, np.ndarray]]:
 
 
 def _seq_speeds(mcfg: dict) -> dict:
-    """Base Motion speeds for sequence / MoveXB (robot multipliers applied separately)."""
+    """Base Motion speeds for point-by-point sequence (robot multipliers separate)."""
     return {
         "joint_speed": float(mcfg.get("joint_speed", 180.0)),
         "joint_acc": float(mcfg.get("joint_acc", 180.0)),
         "linear_speed": float(mcfg.get("linear_speed", 1000.0)),
         "linear_acc": float(mcfg.get("linear_acc", 1000.0)),
+        "blend": float(mcfg.get("xb_blend_distance", 100.0)),
+    }
+
+
+def _xb_speeds(mcfg: dict) -> dict:
+    """MoveXB add speeds from speed.xb (joint %; linear mm/s). Blend from motion cfg."""
+    return {
+        "joint_speed": float(XB_JOINT_SPEED),
+        "joint_acc": float(XB_JOINT_ACCELERATION),
+        "linear_speed": float(XB_LINEAR_SPEED),
+        "linear_acc": float(XB_LINEAR_ACCELERATION),
         "blend": float(mcfg.get("xb_blend_distance", 100.0)),
     }
 
@@ -69,13 +86,21 @@ def _play_sequence_once(app: Any, sequence_name: str, *, merge: bool) -> bool:
     if merge:
         if app.stop_requested:
             return False
+        xb = _xb_speeds(mcfg)
+        logger.info(
+            green(
+                f"MoveXB adds: joint {xb['joint_speed']}%/{xb['joint_acc']}% "
+                f"linear {xb['linear_speed']} mm/s / {xb['linear_acc']} mm/s² "
+                f"blend={xb['blend']}"
+            )
+        )
         app.controller.move_xb(
             steps,
-            linear_speed=spd["linear_speed"],
-            linear_acc=spd["linear_acc"],
-            joint_speed=spd["joint_speed"],
-            joint_acc=spd["joint_acc"],
-            blend_distance=spd["blend"],
+            linear_speed=xb["linear_speed"],
+            linear_acc=xb["linear_acc"],
+            joint_speed=xb["joint_speed"],
+            joint_acc=xb["joint_acc"],
+            blend_distance=xb["blend"],
         )
         return not app.stop_requested
     for mode, pose in steps:

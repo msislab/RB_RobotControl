@@ -10,13 +10,7 @@ import yaml
 CONFIG_DIR = Path(__file__).parent
 
 # Nested under their filename (without .yaml). robot.yaml merges at root.
-_NESTED_COMPONENTS: List[str] = [
-    "speed",
-    "motion",
-    "logger",
-    "camera",
-    "omron",
-]
+_NESTED_COMPONENTS: List[str] = ["speed", "motion", "logger", "camera", "omron"]
 
 
 def _read_yaml(path: Path) -> Any:
@@ -89,9 +83,13 @@ _cartesian_config = _speed_config.get("cartesian", {}) or {}
 CARTESIAN_LINEAR_SPEED = _cartesian_config.get("linear_speed", 100.0)
 CARTESIAN_LINEAR_ACCELERATION = _cartesian_config.get("linear_acceleration", 1000.0)
 CARTESIAN_ROTATIONAL_SPEED = _cartesian_config.get("rotational_speed", 45.0)
-CARTESIAN_ROTATIONAL_ACCELERATION = _cartesian_config.get(
-    "rotational_acceleration", 500.0
-)
+CARTESIAN_ROTATIONAL_ACCELERATION = _cartesian_config.get("rotational_acceleration", 500.0)
+
+_xb_config = _speed_config.get("xb", {}) or {}
+XB_JOINT_SPEED = float(_xb_config.get("joint_speed", 100.0))  # %
+XB_JOINT_ACCELERATION = float(_xb_config.get("joint_acceleration", 100.0))  # %
+XB_LINEAR_SPEED = float(_xb_config.get("linear_speed", 1000.0))  # mm/s
+XB_LINEAR_ACCELERATION = float(_xb_config.get("linear_acceleration", 1000.0))  # mm/s²
 
 _logger_config = _config.get("logger", {}) or {}
 LOGGER_LEVEL = _logger_config.get("level", "INFO")
@@ -107,13 +105,15 @@ CAMERA_WIDTH = int(_camera_config.get("width", 640))
 CAMERA_HEIGHT = int(_camera_config.get("height", 360))
 CAMERA_EXPOSURE = float(_camera_config.get("exposure", 100))
 CAMERA_GAIN = float(_camera_config.get("gain", 16))
+CAMERA_HIDE_PREVIEW = bool(_camera_config.get("hide_preview", False))
 _stereo = _camera_config.get("stereo_depth", {}) or {}
 STEREO_ENABLED = bool(_stereo.get("enabled", False))
 STEREO_BACKEND = str(_stereo.get("backend", "pytorch"))
 STEREO_VARIANT = str(_stereo.get("variant", "23-36-37"))
 STEREO_VALID_ITERS = int(_stereo.get("valid_iters", 4))
+STEREO_MAX_DISPARITY = int(_stereo.get("max_disparity", 192))
 STEREO_Z_FAR = float(_stereo.get("z_far", 1.0))
-STEREO_ONNX_SIZE = str(_stereo.get("onnx_size", "576x960"))
+STEREO_ONNX_SIZE = str(_stereo.get("onnx_size", "320x736"))
 
 _omron_config = _config.get("omron", {}) or {}
 OMRON_ENABLED = bool(_omron_config.get("enabled", False))
@@ -151,6 +151,10 @@ __all__ = [
     "CARTESIAN_LINEAR_ACCELERATION",
     "CARTESIAN_ROTATIONAL_SPEED",
     "CARTESIAN_ROTATIONAL_ACCELERATION",
+    "XB_JOINT_SPEED",
+    "XB_JOINT_ACCELERATION",
+    "XB_LINEAR_SPEED",
+    "XB_LINEAR_ACCELERATION",
     "LOGGER_LEVEL",
     "LOGGER_FORMAT",
     "LOGGER_COLORIZE",
@@ -162,10 +166,12 @@ __all__ = [
     "CAMERA_HEIGHT",
     "CAMERA_EXPOSURE",
     "CAMERA_GAIN",
+    "CAMERA_HIDE_PREVIEW",
     "STEREO_ENABLED",
     "STEREO_BACKEND",
     "STEREO_VARIANT",
     "STEREO_VALID_ITERS",
+    "STEREO_MAX_DISPARITY",
     "STEREO_Z_FAR",
     "STEREO_ONNX_SIZE",
     "OMRON_ENABLED",

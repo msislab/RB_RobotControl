@@ -44,6 +44,7 @@ def build_main_layout(
     on_stop,
     *,
     on_live_change: Optional[Callable[[], None]] = None,
+    on_hide_preview: Optional[Callable[[bool], None]] = None,
     on_open_robot: Optional[Callable[[], None]] = None,
 ) -> Tuple[
     SettingsPanel,
@@ -79,7 +80,12 @@ def build_main_layout(
     left.columnconfigure(0, weight=1)
 
     scroll_inner = scrollable_column(left)
-    settings = SettingsPanel(scroll_inner, defaults, on_live_change=on_live_change)
+    settings = SettingsPanel(
+        scroll_inner,
+        defaults,
+        on_live_change=on_live_change,
+        on_hide_preview=on_hide_preview,
+    )
     settings.frame.pack(side=tk.TOP, fill=tk.X)
 
     actions = ttk.Frame(left, style="Surface.TFrame", padding=(10, 0, 10, 10))

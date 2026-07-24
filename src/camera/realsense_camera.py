@@ -140,8 +140,7 @@ class RealSenseCamera:
         if self.want_ir:
             ir1 = frames.get_infrared_frame(1)
             ir2 = frames.get_infrared_frame(2)
-            if not ir1 or not ir2:
-                return {}
+            # Missing IR must not drop RGB/depth — stereo feeder just waits.
 
         view = frames
         if self._align is not None:
@@ -155,9 +154,8 @@ class RealSenseCamera:
 
         if self.want_depth:
             depth = view.get_depth_frame()
-            if not depth:
-                return out
-            out["depth"] = _depth_to_bgr(np.asanyarray(depth.get_data()))
+            if depth:
+                out["depth"] = _depth_to_bgr(np.asanyarray(depth.get_data()))
 
         if ir1 and ir2:
             out["ir1"] = _gray_to_bgr(np.asanyarray(ir1.get_data()))

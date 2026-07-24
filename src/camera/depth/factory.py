@@ -10,10 +10,12 @@ def build_estimator(cfg: Mapping[str, Any], *, width: int, height: int):
     backend = str(cfg.get("backend", "pytorch")).strip().lower()
     variant = str(cfg.get("variant", "23-36-37"))
     valid_iters = int(cfg.get("valid_iters", 4))
+    max_disparity = int(cfg.get("max_disparity", 192))
     z_far = float(cfg.get("z_far", 1.0))
     common: Dict[str, Any] = {
         "variant": variant,
         "valid_iters": valid_iters,
+        "max_disparity": max_disparity,
         "z_far": z_far,
     }
     if backend == "pytorch":
@@ -23,5 +25,5 @@ def build_estimator(cfg: Mapping[str, Any], *, width: int, height: int):
     if backend == "onnx":
         from src.camera.depth.onnx_depth import OnnxDepthEstimator
 
-        return OnnxDepthEstimator(onnx_size=str(cfg.get("onnx_size", "576x960")), **common)
+        return OnnxDepthEstimator(onnx_size=str(cfg.get("onnx_size", "320x736")), **common)
     raise ValueError(f"Unknown stereo backend {backend!r} (expected pytorch|onnx)")

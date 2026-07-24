@@ -64,7 +64,9 @@ class RobotApplication:
                 float(cfg.get("acceleration_multiplier", 1.0))
             )
             from src.config.loader import DEFAULT_SPEED_BAR
-            self.controller.set_speed_bar(float(DEFAULT_SPEED_BAR))
+            self.controller.set_speed_bar(
+                float(cfg.get("speed_bar", DEFAULT_SPEED_BAR))
+            )
             try:
                 self.controller.task_resume(collision=True)
             except Exception as e:

@@ -23,6 +23,7 @@ def build_camera_section(
     lockable: List[tk.Widget],
     *,
     on_live_change: Optional[Callable[[], None]] = None,
+    on_hide_preview: Optional[Callable[[bool], None]] = None,
 ) -> Dict[str, Any]:
     """Build camera controls; returns vars dict used by SettingsPanel.values()."""
     d = defaults
@@ -40,6 +41,20 @@ def build_camera_section(
         cb = ttk.Checkbutton(cam, text=text, variable=var)
         cb.pack(anchor=tk.W, pady=(0, 2))
         lockable.append(cb)
+
+    hide_preview = tk.BooleanVar(value=bool(d.get("hide_preview", False)))
+
+    def _on_hide() -> None:
+        if on_hide_preview is not None:
+            on_hide_preview(bool(hide_preview.get()))
+
+    ttk.Checkbutton(
+        cam,
+        text="Hide image previews (FPS only)",
+        variable=hide_preview,
+        command=_on_hide,
+    ).pack(anchor=tk.W, pady=(0, 4))
+    # Live while running — not added to lockable.
 
     fps0 = int(d.get("fps", 30))
     idx = FPS_STEPS.index(fps0) if fps0 in FPS_STEPS else len(FPS_STEPS) - 1
@@ -98,11 +113,13 @@ def build_camera_section(
         "camera_enabled": rs_en,
         "omron_enabled": om_en,
         "stereo_enabled": stereo_en,
+        "hide_preview": hide_preview,
         "stereo_backend": str(d.get("stereo_backend", "pytorch")),
         "stereo_variant": str(d.get("stereo_variant", "23-36-37")),
         "stereo_valid_iters": int(d.get("stereo_valid_iters", 4)),
+        "stereo_max_disparity": int(d.get("stereo_max_disparity", 192)),
         "stereo_z_far": float(d.get("stereo_z_far", 1.0)),
-        "stereo_onnx_size": str(d.get("stereo_onnx_size", "576x960")),
+        "stereo_onnx_size": str(d.get("stereo_onnx_size", "320x736")),
         # RealSense stream size from camera.yaml (Omron uses sensor max ROI).
         "width": int(d.get("width", 640)),
         "height": int(d.get("height", 360)),
@@ -120,9 +137,11 @@ def camera_values(cam: Dict[str, Any]) -> Dict[str, Any]:
         "camera_enabled": bool(cam["camera_enabled"].get()),
         "omron_enabled": bool(cam["omron_enabled"].get()),
         "stereo_enabled": bool(cam["stereo_enabled"].get()),
+        "hide_preview": bool(cam["hide_preview"].get()),
         "stereo_backend": cam["stereo_backend"],
         "stereo_variant": cam["stereo_variant"],
         "stereo_valid_iters": cam["stereo_valid_iters"],
+        "stereo_max_disparity": cam["stereo_max_disparity"],
         "stereo_z_far": cam["stereo_z_far"],
         "stereo_onnx_size": cam["stereo_onnx_size"],
         "width": int(cam["width"]),

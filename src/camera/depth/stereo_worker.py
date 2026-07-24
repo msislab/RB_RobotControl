@@ -35,6 +35,7 @@ class StereoWorker:
         self._ready = False
         self._error: Optional[str] = None
         self._heatmap: Optional[np.ndarray] = None
+        self._heatmap_dirty = False
         self._pending: Optional[Tuple[np.ndarray, np.ndarray]] = None
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -78,6 +79,14 @@ class StereoWorker:
         with self._lock:
             return None if self._heatmap is None else self._heatmap.copy()
 
+    def consume_heatmap(self) -> Optional[np.ndarray]:
+        """Return a new heatmap once; None if unchanged since last consume."""
+        with self._lock:
+            if not self._heatmap_dirty or self._heatmap is None:
+                return None
+            self._heatmap_dirty = False
+            return self._heatmap.copy()
+
     def _loop(self) -> None:
         while not self._stop.is_set():
             pair = None
@@ -95,6 +104,7 @@ class StereoWorker:
                 if heatmap is not None:
                     with self._lock:
                         self._heatmap = heatmap
+                        self._heatmap_dirty = True
             except Exception as exc:
                 logger.warning(yellow(f"Stereo infer failed: {exc}"))
 

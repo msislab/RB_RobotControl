@@ -12,6 +12,7 @@ from PIL import Image, ImageTk
 
 
 def fit_bgr(bgr, frames: Dict[str, ttk.LabelFrame], key: str):
+    """Fit into pane; never upscale past native preview (saves Tk work)."""
     fr = frames.get(key)
     if fr is None:
         return bgr
@@ -20,7 +21,7 @@ def fit_bgr(bgr, frames: Dict[str, ttk.LabelFrame], key: str):
     h, w = bgr.shape[:2]
     if w < 1 or h < 1:
         return bgr
-    scale = min(tw / float(w), th / float(h))
+    scale = min(tw / float(w), th / float(h), 1.0)
     nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
     if nw == w and nh == h:
         return bgr
@@ -45,14 +46,22 @@ def update_images(
 ) -> None:
     panel.update_idletasks()
     for key, bgr in frame_map.items():
-        if key not in labels:
-            continue
-        bgr = fit_bgr(bgr, frames, key)
-        photo = ImageTk.PhotoImage(
-            image=Image.fromarray(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
-        )
-        photo_store[key] = photo
-        labels[key].configure(image=photo, text="")
+        update_one_image(labels, photo_store, key, fit_bgr(bgr, frames, key))
+
+
+def update_one_image(
+    labels: Dict[str, tk.Label],
+    photo_store: Dict[str, Any],
+    key: str,
+    bgr: Any,
+) -> None:
+    if key not in labels:
+        return
+    photo = ImageTk.PhotoImage(
+        image=Image.fromarray(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
+    )
+    photo_store[key] = photo
+    labels[key].configure(image=photo, text="")
 
 
 def setup_start_preview(

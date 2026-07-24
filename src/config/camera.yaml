@@ -7,11 +7,14 @@ width: 640
 height: 360
 exposure: 5000   # µs; live while running
 gain: 128
+# When true: skip Tk image draw (FPS titles still update) to cut UI load
+hide_preview: false
 # Fast-FoundationStereo from IR1/IR2 (checkbox overrides enabled at Start)
 stereo_depth:
   enabled: false
   backend: pytorch   # pytorch | onnx
   variant: "23-36-37"
   valid_iters: 4
+  max_disparity: 192   # geometry volume max (pytorch); 192 is the usual upper default
   z_far: 1.0
-  onnx_size: "576x960"   # 576x960 | 320x736 (onnx only)
+  onnx_size: "320x736"   # 576x960 | 320x736 (onnx only; 576x960 needs lots of VRAM)

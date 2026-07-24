@@ -18,15 +18,17 @@ def run_move_xb(
     motion,
     steps: Sequence[Step],
     *,
-    linear_speed: float = 100.0,
-    linear_acc: float = 500.0,
-    joint_speed: float = 60.0,
-    joint_acc: float = 80.0,
+    linear_speed: float = 1000.0,
+    linear_acc: float = 1000.0,
+    joint_speed: float = 100.0,
+    joint_acc: float = 100.0,
     blend_distance: float = 100.0,
 ) -> None:
     """
     Pack sequence into one MoveXB (same pattern as AIRobot_Framework).
 
+    joint_speed/joint_acc are % (0–100) for move_xb_j_add.
+    linear_speed/linear_acc are mm/s and mm/s² for move_xb_p_add.
     Intermediate points use distance blend; last point blend=0.
     Requires rbpodo >= 0.16.10 (move_xb_*).
     """

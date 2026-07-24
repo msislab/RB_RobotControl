@@ -12,7 +12,8 @@ import yaml
 from loguru import logger
 
 from src.camera.depth.heatmap import depth_to_jet_heatmap, to_gray_uint8
-from src.utils.color import green
+from src.camera.depth.ort_cuda_libs import ensure_nvidia_lib_path
+from src.utils.color import green, yellow
 
 logger = logger.bind(component="stereo")
 
@@ -28,34 +29,65 @@ class OnnxDepthEstimator:
         self,
         *,
         variant: str = "23-36-37",
-        onnx_size: str = "576x960",
+        onnx_size: str = "320x736",
         valid_iters: int = 4,
+        max_disparity: int = 192,
         z_far: float = 1.0,
         min_disparity: float = 0.5,
     ) -> None:
-        import onnxruntime as ort
+        ensure_nvidia_lib_path()
+        try:
+            import onnxruntime as ort
+        except ImportError as e:
+            raise ImportError(
+                "ONNX stereo needs onnxruntime-gpu (CUDA 12.x wheel, e.g. "
+                "onnxruntime-gpu==1.22.0). Install: pip install -r requirements-stereo.txt"
+            ) from e
 
         self.z_far = float(z_far)
         self.min_disparity = float(min_disparity)
+        self.max_disparity = int(max_disparity)
         self.last_inference_ms = 0.0
         onnx_path = self._resolve_onnx(variant, onnx_size, valid_iters)
-        cfg_path = onnx_path.with_suffix(".yaml")
-        with open(cfg_path, "r", encoding="utf-8") as f:
+        with open(onnx_path.with_suffix(".yaml"), "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         self.target_h, self.target_w = int(cfg["image_size"][0]), int(cfg["image_size"][1])
 
-        providers = []
-        if "CUDAExecutionProvider" in ort.get_available_providers():
-            providers.append("CUDAExecutionProvider")
+        available = ort.get_available_providers()
+        providers: list = []
+        if "CUDAExecutionProvider" in available:
+            providers.append(
+                (
+                    "CUDAExecutionProvider",
+                    {
+                        "arena_extend_strategy": "kSameAsRequested",
+                        "cudnn_conv_algo_search": "DEFAULT",
+                    },
+                )
+            )
+        else:
+            logger.warning(yellow("CUDAExecutionProvider missing — ONNX stereo on CPU"))
         providers.append("CPUExecutionProvider")
+        so = ort.SessionOptions()
+        so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         logger.info(green(f"Loading ONNX stereo: {onnx_path} providers={providers}"))
-        self.session = ort.InferenceSession(str(onnx_path), providers=providers)
+        try:
+            self.session = ort.InferenceSession(
+                str(onnx_path), sess_options=so, providers=providers
+            )
+        except Exception as e:
+            if "CUDAExecutionProvider" not in available:
+                raise
+            logger.warning(yellow(f"CUDA ONNX session failed ({e}); retrying CPU"))
+            self.session = ort.InferenceSession(
+                str(onnx_path), sess_options=so, providers=["CPUExecutionProvider"]
+            )
         self.input_names = [i.name for i in self.session.get_inputs()]
         self.output_names = [o.name for o in self.session.get_outputs()]
+        logger.info(green(f"ONNX stereo session providers={self.session.get_providers()}"))
 
     @staticmethod
     def _resolve_onnx(variant: str, onnx_size: str, valid_iters: int) -> Path:
-        # Folder uses underscores: 23_36_37
         folder = variant.replace("-", "_")
         name = f"{folder}_iters_{int(valid_iters)}_res_{onnx_size}.onnx"
         path = WEIGHTS_DIR / "onnx" / folder / onnx_size / name
@@ -75,9 +107,11 @@ class OnnxDepthEstimator:
         if (orig_h, orig_w) != (self.target_h, self.target_w):
             left = cv2.resize(left, (self.target_w, self.target_h), interpolation=cv2.INTER_LINEAR)
             right = cv2.resize(right, (self.target_w, self.target_h), interpolation=cv2.INTER_LINEAR)
+
         def _norm(img: np.ndarray) -> np.ndarray:
             x = (img.astype(np.float32) / 255.0 - IMAGENET_MEAN) / IMAGENET_STD
             return np.transpose(x, (2, 0, 1))[None].astype(np.float32)
+
         return _norm(left), _norm(right), scale_x
 
     def process(
@@ -94,22 +128,17 @@ class OnnxDepthEstimator:
         t_left, t_right, scale_x = self._preprocess(left_image, right_image)
         feed = {}
         for name in self.input_names:
-            if "left" in name.lower():
-                feed[name] = t_left
-            else:
-                feed[name] = t_right
+            feed[name] = t_left if "left" in name.lower() else t_right
         t0 = time.perf_counter()
         outs = self.session.run(self.output_names, feed)
         self.last_inference_ms = (time.perf_counter() - t0) * 1000.0
         disp = np.asarray(outs[0], dtype=np.float32).reshape(self.target_h, self.target_w)
         disp = np.clip(disp, 0, None) * (1.0 / scale_x)
-        # Scale fx to resized width for triangulation at model resolution.
         fx_scaled = float(fx) * scale_x
         valid = disp > self.min_disparity
         depth = np.zeros_like(disp, dtype=np.float32)
         depth[valid] = (fx_scaled * baseline) / disp[valid]
         depth[depth > self.z_far] = 0.0
-        # Resize depth back to original IR size for display consistency.
         oh, ow = to_gray_uint8(left_image).shape[:2]
         if depth.shape != (oh, ow):
             depth = cv2.resize(depth, (ow, oh), interpolation=cv2.INTER_NEAREST)

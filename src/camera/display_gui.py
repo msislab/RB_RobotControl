@@ -11,14 +11,12 @@ from src.application.application import RobotApplication
 from src.camera.gui_camera import apply_live_exposure
 from src.camera.gui_fps import CameraFpsBoard
 from src.camera.gui_pose import format_run_status, peek_pose
-from src.camera.gui_preview import collect_frames, update_images
 from src.camera.gui_connect import begin_connect, schedule_launch_connect
 from src.camera.gui_robot_nav import home_pose, show_main_settings, show_robot_controls
 from src.camera.gui_robot_panel import RobotControlPanel
-from src.camera.gui_run import begin_start, finish_stop, halt_stereo
+from src.camera.gui_run import begin_start, finish_stop, halt_stereo, stop_preview_workers
 from src.camera.gui_shell import build_main_layout
 from src.camera.gui_start import validate_start
-from src.camera.gui_stereo import tick_stereo
 from src.camera.gui_theme import apply_theme, maximize_window
 from src.camera.omron_camera import OmronCameras, shutdown_omron_devices
 from src.camera.realsense_camera import RealSenseCamera
@@ -47,6 +45,10 @@ class CameraControlGui:
         self._robot_view = False
         self._stereo = None
         self._stereo_pane = False
+        self._capture_pool = None
+        self._pane_workers = None
+        self._frame_hub = None
+        self._hide_preview = bool(defaults.get("hide_preview", False))
         self.root = tk.Tk()
         self.root.title("RobotControl — cameras")
         self._style = apply_theme(self.root)
@@ -59,6 +61,7 @@ class CameraControlGui:
         ) = build_main_layout(
             self.root, self._style, defaults, self._on_start, self._on_stop,
             on_live_change=self._schedule_live_apply,
+            on_hide_preview=self._on_hide_preview,
             on_open_robot=lambda: show_robot_controls(self),
         )
         self.robot_panel = RobotControlPanel(
@@ -115,6 +118,17 @@ class CameraControlGui:
             except Exception:
                 pass
 
+    def _on_hide_preview(self, hide: bool) -> None:
+        self._hide_preview = bool(hide)
+        if not hide:
+            return
+        for key, lbl in self._labels.items():
+            lbl.configure(image="", text="—")
+            self._photo.pop(key, None)
+        pool = getattr(self, "_pane_workers", None)
+        if pool is not None:
+            pool._blanked.clear()
+
     def _on_start(self) -> None:
         if self._running or self._starting:
             return
@@ -147,6 +161,7 @@ class CameraControlGui:
             self.root.after(0, lambda: self.status_var.set(f"Robot error: {e}"))
 
     def _stop_cameras(self) -> None:
+        stop_preview_workers(self)
         halt_stereo(self)
         if self.camera is not None:
             self.camera.stop()
@@ -163,21 +178,6 @@ class CameraControlGui:
     def _on_stop(self) -> None:
         if self._running or self._starting:
             finish_stop(self)
-
-    def _schedule_frame(self) -> None:
-        if not self._running or (self.camera is None and self.omron is None):
-            return
-        try:
-            frames = collect_frames(self.camera, self.omron)
-            if frames:
-                tick_stereo(self, frames)
-                update_images(
-                    self.panel, self._frames, self._labels, self._photo, frames
-                )
-                self._fps_board.paint_titles(self._frames, frames, self._fps)
-        except Exception as e:
-            logger.warning("Frame read failed: {}", e)
-        self.root.after(max(1, int(1000 / max(1, self._fps))), self._schedule_frame)
 
     def _handle_close(self) -> None:
         self._halt_run()

@@ -7,7 +7,7 @@ from typing import Any, Dict, Mapping
 
 
 class FpsMeter:
-    """Count arrivals in a 1s window."""
+    """Count arrivals in a 1s window (per stream)."""
 
     def __init__(self) -> None:
         self._t0 = time.monotonic()
@@ -42,17 +42,20 @@ class CameraFpsBoard:
     def note_titles(self, titles: Mapping[str, str]) -> None:
         self.titles.update(titles)
 
+    def tick_key(self, key: str, frames: Dict[str, Any], target: int) -> None:
+        """Advance only this pane's meter (call when that pane actually updates)."""
+        meter = self._meters.setdefault(key, FpsMeter())
+        meter.tick()
+        base = self.titles.get(key, key)
+        fr = frames.get(key)
+        if fr is not None:
+            fr.configure(text=f"{base} — {meter.measured}/{int(target)}")
+
     def paint_titles(
         self,
         frames: Dict[str, Any],
         frame_map: Dict[str, Any],
         target: int,
     ) -> None:
-        t = int(target)
         for key in frame_map:
-            meter = self._meters.setdefault(key, FpsMeter())
-            meter.tick()
-            base = self.titles.get(key, key)
-            fr = frames.get(key)
-            if fr is not None:
-                fr.configure(text=f"{base} — {meter.measured}/{t}")
+            self.tick_key(key, frames, target)

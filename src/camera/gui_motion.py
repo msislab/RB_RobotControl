@@ -93,7 +93,7 @@ def build_motion_section(
     )
 
     ttk.Label(
-        motion, text="Speed bar (scales ZigZag move_speed_l)", style="Muted.TLabel", font=FONT_LABEL
+        motion, text="Speed bar (global; also scales ZigZag)", style="Muted.TLabel", font=FONT_LABEL
     ).pack(anchor=tk.W)
     bar_row = ttk.Frame(motion, style="Surface.TFrame")
     bar_row.pack(fill=tk.X, pady=(0, 4))

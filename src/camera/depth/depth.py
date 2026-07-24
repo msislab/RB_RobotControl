@@ -34,6 +34,7 @@ class DepthEstimator:
         *,
         variant: str = "23-36-37",
         valid_iters: int = 4,
+        max_disparity: int = 192,
         z_far: float = 1.0,
         min_disparity: float = 0.5,
         warmup: bool = True,
@@ -43,6 +44,7 @@ class DepthEstimator:
         self.logger = logger
         self.variant = str(variant)
         self.valid_iters = int(valid_iters)
+        self.max_disparity = int(max_disparity)
         self.z_far = float(z_far)
         self.min_disparity = float(min_disparity)
         self.input_h = int(input_h)
@@ -72,6 +74,7 @@ class DepthEstimator:
         self.logger.info(green(f"Loading stereo checkpoint: {checkpoint}"))
         self.model = torch.load(str(checkpoint), map_location="cpu", weights_only=False)
         self.model.args.valid_iters = self.valid_iters
+        self.model.args.max_disp = self.max_disparity
         self.model.cuda().eval()
         self.logger.info(green("Stereo model loaded on GPU."))
         if warmup:

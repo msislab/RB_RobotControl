@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from loguru import logger
 
-from src.camera.omron_frame import latest_bgr
+from src.camera.omron_frame import read_all as frames_all, read_one as frame_one
 from src.camera.omron_gain import clamp_gain, get_omron_gain_limits, probe_gain_limits
 from src.camera.omron_net import auto_assign_ips
 from src.camera.omron_nodes import set_enumeration, set_numeric
@@ -135,7 +135,7 @@ class OmronCameras:
         *,
         exposure: float = 500.0,
         gain: float = 200.0,
-        timeout_ms: int = 200,
+        timeout_ms: int = 50,
     ) -> None:
         self.exposure = float(exposure)
         self.gain = float(gain)
@@ -184,12 +184,12 @@ class OmronCameras:
             except Exception:
                 logger.exception("Omron exposure/gain failed for {}", cid)
 
+    def read_one(self, cid: str) -> Optional[np.ndarray]:
+        if not self._devices:
+            raise RuntimeError("Omron cameras not attached")
+        return frame_one(self._devices, cid, timeout_ms=self.timeout_ms)
+
     def read_all(self) -> Dict[str, np.ndarray]:
         if not self._devices:
             raise RuntimeError("Omron cameras not attached")
-        out: Dict[str, np.ndarray] = {}
-        for cid, _device, stream, converter in self._devices:
-            bgr = latest_bgr(stream, converter, timeout_ms=self.timeout_ms)
-            if bgr is not None:
-                out[cid] = bgr
-        return out
+        return frames_all(self._devices, timeout_ms=self.timeout_ms)

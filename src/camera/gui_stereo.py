@@ -21,8 +21,9 @@ def stereo_cfg_from_settings(cfg: Dict[str, Any]) -> Dict[str, Any]:
         "backend": str(cfg.get("stereo_backend", "pytorch")),
         "variant": str(cfg.get("stereo_variant", "23-36-37")),
         "valid_iters": int(cfg.get("stereo_valid_iters", 4)),
+        "max_disparity": int(cfg.get("stereo_max_disparity", 192)),
         "z_far": float(cfg.get("stereo_z_far", 1.0)),
-        "onnx_size": str(cfg.get("stereo_onnx_size", "576x960")),
+        "onnx_size": str(cfg.get("stereo_onnx_size", "320x736")),
     }
 
 
@@ -52,23 +53,16 @@ def stop_stereo_worker(worker: Optional[StereoWorker]) -> None:
         worker.stop()
 
 
-def tick_stereo(gui: Any, frames: Dict[str, Any]) -> None:
-    """Feed IR to worker; reveal stereo pane when ready; attach heatmap."""
-    w = getattr(gui, "_stereo", None)
-    if w is None:
+def reveal_stereo_pane(gui: Any) -> None:
+    """Show stereo_depth cell and start its pane worker (Tk thread)."""
+    if getattr(gui, "_stereo_pane", False):
         return
-    if w.error and not getattr(gui, "_stereo_pane", False):
-        gui.status_var.set(f"Stereo unavailable: {w.error}")
-        return
-    if w.ready and not getattr(gui, "_stereo_pane", False):
-        gui._stereo_pane = True
-        cfg = getattr(gui, "_start_cfg", {}) or {}
-        omron_ids = list(gui.omron.camera_ids) if gui.omron is not None else []
-        keys = rs_keys(cfg.get("view", "rgb"), gui.camera is not None, True) + omron_ids
-        show_keys(gui.panel, gui._frames, gui._labels, keys)
-        gui.status_var.set("Running · stereo depth ready")
-    if w.ready and "ir1" in frames and "ir2" in frames:
-        w.submit(frames["ir1"], frames["ir2"])
-        heat = w.latest_heatmap()
-        if heat is not None:
-            frames["stereo_depth"] = heat
+    gui._stereo_pane = True
+    cfg = getattr(gui, "_start_cfg", {}) or {}
+    omron_ids = list(gui.omron.camera_ids) if gui.omron is not None else []
+    keys = rs_keys(cfg.get("view", "rgb"), gui.camera is not None, True) + omron_ids
+    show_keys(gui.panel, gui._frames, gui._labels, keys)
+    pool = getattr(gui, "_pane_workers", None)
+    if pool is not None:
+        pool.add_key("stereo_depth")
+    gui.status_var.set("Running · stereo depth ready")

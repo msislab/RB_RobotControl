@@ -1,13 +1,20 @@
 # Speed / acceleration multipliers and joint/cartesian limits
-speed_multiplier: 1
-acceleration_multiplier: 1
+speed_multiplier: 2          # min 0, max 2 (rbpodo)
+acceleration_multiplier: 2   # min 0, max 2 (rbpodo)
 
 joint:
-  speed: 180.0  # deg/s
-  acceleration: 180.0  # deg/s²
+  speed: 180.0           # deg/s — min 0, max 180 (RB joint max)
+  acceleration: 1800.0   # deg/s² — min 0; no published hardware max (err 324 if out of range)
 
 cartesian:
-  linear_speed: 1000.0  # mm/s
-  linear_acceleration: 1000.0  # mm/s²
-  rotational_speed: 45.0  # deg/s
-  rotational_acceleration: 500.0  # deg/s²
+  linear_speed: 1000.0              # mm/s — min 0, max 1000 (RB tool max 1 m/s)
+  linear_acceleration: 10000.0      # mm/s² — min 0; no published hardware max (err 324 if out of range)
+  rotational_speed: 45.0            # deg/s — min 0
+  rotational_acceleration: 500.0    # deg/s² — min 0
+
+# Merge movements (MoveXB) only — always used for move_xb_*_add
+xb:
+  joint_speed: 100.0           # % — min 0, max 100 (rbpodo move_xb_j_add)
+  joint_acceleration: 100.0    # % — min 0, max 100
+  linear_speed: 1000.0         # mm/s — min 0, max 1000 (RB tool max 1 m/s)
+  linear_acceleration: 1000.0  # mm/s² — min 0; no published hardware max (err 324 if out of range)
