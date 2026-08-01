@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 from src.camera.gui_scroll import scrollable_column
 from src.camera.gui_settings import SettingsPanel
+from src.camera.gui_sys_meters import METER_WIDTH, SysUsageStrip
 from src.camera.gui_theme import (
     FONT_UI,
     MUTED,
@@ -75,6 +76,7 @@ def build_main_layout(
     body.pack(fill=tk.BOTH, expand=True)
     body.columnconfigure(0, minsize=SIDEBAR_WIDTH)
     body.columnconfigure(1, weight=1)
+    body.columnconfigure(2, minsize=METER_WIDTH)
     body.rowconfigure(0, weight=1)
 
     left = ttk.Frame(body, style="Surface.TFrame")
@@ -131,6 +133,10 @@ def build_main_layout(
         ("stereo_depth", "Stereo depth"),
     ):
         add_preview_pane(panel, labels, frames, key, title, titles)
+
+    meters = SysUsageStrip(body)
+    meters.frame.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
+    meters.start(root)
 
     status = ttk.Frame(root, style="Surface.TFrame", padding=(12, 8))
     status.pack(side=tk.BOTTOM, fill=tk.X)
