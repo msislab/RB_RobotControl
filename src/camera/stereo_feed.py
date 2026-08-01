@@ -1,4 +1,4 @@
-"""Stereo feeder thread: IR submit + heatmap publish (off RealSense loop)."""
+"""Stereo feeder thread: heatmap publish only (native IR submitted by capture)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from src.camera.frame_hub import FrameHub
 
 
 class StereoFeed:
-    """Owns one thread; never runs on the RealSense capture loop."""
+    """Publishes stereo heatmaps into the hub; IR infer is fed elsewhere."""
 
     def __init__(
         self,
@@ -44,7 +44,6 @@ class StereoFeed:
             self._thread = None
 
     def _loop(self) -> None:
-        ir_gen = 0
         while not self._stop.is_set():
             w = self.worker
             if w is None or w.error:
@@ -54,11 +53,8 @@ class StereoFeed:
                 self._shown = True
                 if self._on_ready is not None:
                     self._on_ready()
-            ir1, ir_gen = self.hub.wait_new("ir1", ir_gen, timeout=0.05)
-            if ir1 is not None and w.ready:
-                ir2, _ = self.hub.get("ir2")
-                if ir2 is not None:
-                    w.submit(ir1, ir2)
             heat = w.consume_heatmap() if hasattr(w, "consume_heatmap") else None
             if heat is not None:
                 self.hub.publish("stereo_depth", heat)
+            else:
+                self._stop.wait(0.01)

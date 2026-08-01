@@ -8,12 +8,12 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 
 from src.camera.capture_pool import CapturePool
-from src.camera.device_fps import DeviceFpsStore
+from src.camera.device_fps import DeviceMetaStore
 from src.camera.frame_hub import FrameHub
 from src.camera.gui_preview import rs_keys, setup_start_preview
 from src.camera.gui_shell import add_preview_pane
 from src.camera.gui_start import start_cameras
-from src.camera.gui_stereo import reveal_stereo_pane, start_stereo_worker, stop_stereo_worker
+from src.camera.gui_stereo import reveal_stereo_pane, start_stereo_worker
 from src.camera.omron_camera import OmronCameras
 from src.camera.pane_workers import PaneWorkerPool
 from src.camera.realsense_camera import RealSenseCamera
@@ -21,6 +21,9 @@ from src.utils.color import green, yellow
 
 
 def begin_start(gui: Any, cfg: Dict[str, Any]) -> None:
+    if getattr(gui, "_stopping", False):
+        gui.status_var.set("Still stopping — wait, then Start")
+        return
     gui._fps = int(cfg["fps"])
     gui._start_cfg = cfg
     gui._starting = True
@@ -29,6 +32,8 @@ def begin_start(gui: Any, cfg: Dict[str, Any]) -> None:
     gui.settings.set_locked(True)
     gui.start_btn.configure(state="disabled")
     gui.stop_btn.configure(state="normal")
+    if hasattr(gui, "immediate_btn"):
+        gui.immediate_btn.configure(state="normal")
     gui.status_var.set("Starting…")
     threading.Thread(target=camera_start_worker, args=(gui, cfg), daemon=True).start()
 
@@ -48,6 +53,8 @@ def on_camera_start_failed(gui: Any, err: Exception) -> None:
     gui.settings.set_locked(False)
     gui.start_btn.configure(state="normal")
     gui.stop_btn.configure(state="disabled")
+    if hasattr(gui, "immediate_btn"):
+        gui.immediate_btn.configure(state="disabled")
     gui.status_var.set(f"Camera failed: {err}")
 
 
@@ -103,7 +110,9 @@ def _robot_worker_ready(gui: Any) -> bool:
     gui.settings.set_locked(False)
     gui.start_btn.configure(state="normal")
     gui.stop_btn.configure(state="disabled")
-    msg = "Previous robot worker still busy — Stop and retry"
+    if hasattr(gui, "immediate_btn"):
+        gui.immediate_btn.configure(state="disabled")
+    msg = "Previous robot worker still busy — Immediate Stop and retry"
     gui.status_var.set(msg)
     logger.warning(msg)
     return False
@@ -112,14 +121,14 @@ def _robot_worker_ready(gui: Any) -> bool:
 def start_preview_workers(gui: Any, cfg: Dict[str, Any], omron_ids: List[str]) -> None:
     hub = FrameHub()
     gui._frame_hub = hub
-    store = DeviceFpsStore()
-    gui._device_fps = store
-    gui._fps_board.device_fps = store
+    store = DeviceMetaStore()
+    gui._device_meta = store
+    gui._fps_board.device_meta = store
 
     def on_stereo_ready() -> None:
         gui.root.after(0, lambda: reveal_stereo_pane(gui))
 
-    cap = CapturePool(hub, device_fps=store)
+    cap = CapturePool(hub, device_meta=store)
     gui._capture_pool = cap
     cap.start(
         camera=gui.camera,
@@ -154,38 +163,3 @@ def start_preview_workers(gui: Any, cfg: Dict[str, Any], omron_ids: List[str]) -
     gui._pane_workers = panes
     keys = rs_keys(cfg["view"], gui.camera is not None, False) + list(omron_ids)
     panes.start(keys)
-
-
-def stop_preview_workers(gui: Any) -> None:
-    panes = getattr(gui, "_pane_workers", None)
-    if panes is not None:
-        panes.stop()
-        gui._pane_workers = None
-    cap = getattr(gui, "_capture_pool", None)
-    if cap is not None:
-        cap.stop()
-        gui._capture_pool = None
-    gui._frame_hub = None
-    gui._device_fps = None
-    gui._fps_board.device_fps = None
-
-
-def finish_stop(gui: Any) -> None:
-    """Stop cameras + motion loop; keep robot connection for teach/manual."""
-    gui._halt_run()
-    gui.settings.set_locked(False)
-    gui.start_btn.configure(state="normal")
-    gui.stop_btn.configure(state="disabled")
-    if hasattr(gui, "robot_panel"):
-        gui.robot_panel.sync_connect_btn()
-    connected = getattr(gui.app, "_setup_done", False)
-    gui.status_var.set(
-        "Stopped — robot still connected" if connected else "Stopped — change settings, then Start"
-    )
-    logger.info(yellow("Stop requested (robot connection kept)"))
-
-
-def halt_stereo(gui: Any) -> None:
-    stop_stereo_worker(getattr(gui, "_stereo", None))
-    gui._stereo = None
-    gui._stereo_pane = False

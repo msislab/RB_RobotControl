@@ -14,7 +14,10 @@ from src.camera.gui_pose import format_run_status, peek_pose
 from src.camera.gui_connect import begin_connect, schedule_launch_connect
 from src.camera.gui_robot_nav import home_pose, show_main_settings, show_robot_controls
 from src.camera.gui_robot_panel import RobotControlPanel
-from src.camera.gui_run import begin_start, finish_stop, halt_stereo, stop_preview_workers
+from src.camera.gui_run import begin_start
+from src.camera.gui_stop import (
+    halt_run, halt_stereo, on_immediate_stop, on_stop, stop_preview_workers,
+)
 from src.camera.gui_shell import build_main_layout
 from src.camera.gui_start import validate_start
 from src.camera.gui_theme import apply_theme, maximize_window
@@ -45,6 +48,7 @@ class CameraControlGui:
         self._robot_view = False
         self._stereo = None
         self._stereo_pane = False
+        self._stopping = False
         self._capture_pool = None
         self._pane_workers = None
         self._frame_hub = None
@@ -56,10 +60,12 @@ class CameraControlGui:
         self.root.protocol("WM_DELETE_WINDOW", self._handle_close)
         (
             self.settings, self._scroll_inner, self.start_btn, self.stop_btn,
-            self.status_var, self.panel, self._labels, self._frames,
-            self._pane_titles, self._fit_sidebar,
+            self.immediate_btn, self.status_var, self.panel, self._labels,
+            self._frames, self._pane_titles, self._fit_sidebar,
         ) = build_main_layout(
-            self.root, self._style, defaults, self._on_start, self._on_stop,
+            self.root, self._style, defaults, self._on_start,
+            lambda: on_stop(self),
+            on_immediate_stop=lambda: on_immediate_stop(self),
             on_live_change=self._schedule_live_apply,
             on_hide_preview=self._on_hide_preview,
             on_open_robot=lambda: show_robot_controls(self),
@@ -148,6 +154,7 @@ class CameraControlGui:
                 "Robot worker begin routine={!r} merge={}",
                 cfg.get("robot_routine"), cfg.get("robot_sequence_merge"),
             )
+            self.app.clear_stop_flags()
             self.app.setup_with_settings(cfg)
             from src.application.routines import run_routine
             run_routine(
@@ -173,16 +180,10 @@ class CameraControlGui:
             self.omron = None
 
     def _halt_run(self) -> None:
-        self._running = self._starting = False
-        self.app.request_stop()
-        self._stop_cameras()
-
-    def _on_stop(self) -> None:
-        if self._running or self._starting:
-            finish_stop(self)
+        halt_run(self)
 
     def _handle_close(self) -> None:
-        self._halt_run()
+        halt_run(self)
         for label, fn in (("Omron", shutdown_omron_devices), ("Robot", self.app.shutdown)):
             try:
                 fn()

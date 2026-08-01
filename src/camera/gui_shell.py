@@ -43,6 +43,7 @@ def build_main_layout(
     on_start,
     on_stop,
     *,
+    on_immediate_stop: Optional[Callable[[], None]] = None,
     on_live_change: Optional[Callable[[], None]] = None,
     on_hide_preview: Optional[Callable[[bool], None]] = None,
     on_speed_bar_change: Optional[Callable[[float], None]] = None,
@@ -50,6 +51,7 @@ def build_main_layout(
 ) -> Tuple[
     SettingsPanel,
     ttk.Frame,
+    ttk.Button,
     ttk.Button,
     ttk.Button,
     tk.StringVar,
@@ -104,6 +106,14 @@ def build_main_layout(
         row, text="Stop", style="Stop.TButton", command=on_stop, state=tk.DISABLED
     )
     stop_btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    immediate_btn = ttk.Button(
+        actions,
+        text="Immediate Stop",
+        style="Stop.TButton",
+        command=on_immediate_stop or on_stop,
+        state=tk.DISABLED,
+    )
+    immediate_btn.pack(fill=tk.X, pady=(8, 0))
 
     right = ttk.Frame(body, style="Surface.TFrame", padding=10)
     right.grid(row=0, column=1, sticky="nsew")
@@ -132,6 +142,6 @@ def build_main_layout(
 
     root.after(50, fit)
     return (
-        settings, scroll_inner, start_btn, stop_btn, status_var,
+        settings, scroll_inner, start_btn, stop_btn, immediate_btn, status_var,
         panel, labels, frames, titles, fit,
     )

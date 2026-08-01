@@ -30,13 +30,9 @@ _network_prepared = False
 _shared_system: Any = None
 _device_pool: List[DeviceRow] = []
 _pool_lock = Lock()
-
 __all__ = [
-    "OmronCameras",
-    "get_omron_gain_limits",
-    "open_omron_devices_at_startup",
-    "prepare_omron_network",
-    "shutdown_omron_devices",
+    "OmronCameras", "get_omron_gain_limits", "open_omron_devices_at_startup",
+    "prepare_omron_network", "shutdown_omron_devices",
 ]
 
 
@@ -141,6 +137,7 @@ class OmronCameras:
         self._devices: List[DeviceRow] = []
         self._resulting_fps = OmronResultingFps()
         self.last_device_fps: Dict[str, Optional[float]] = {}
+        self.last_native_size: Dict[str, Tuple[int, int]] = {}
 
     @property
     def camera_ids(self) -> List[str]:
@@ -165,7 +162,8 @@ class OmronCameras:
     def stop(self) -> None:
         """Detach from GUI only — pool keeps streaming for fast re-Start."""
         self._devices = []
-        self.last_device_fps = {}
+        self.last_device_fps.clear()
+        self.last_native_size.clear()
         logger.info(yellow("Omron detached (devices stay open from startup)"))
 
     def set_exposure_gain(self, exposure: float, gain: float) -> None:
@@ -187,11 +185,13 @@ class OmronCameras:
     def read_one(self, cid: str) -> Optional[np.ndarray]:
         if not self._devices:
             raise RuntimeError("Omron cameras not attached")
-        bgr = frame_one(self._devices, cid, timeout_ms=self.timeout_ms)
+        bgr, size = frame_one(self._devices, cid, timeout_ms=self.timeout_ms)
         if bgr is not None:
             self.last_device_fps[cid] = self._resulting_fps.touch(
                 _ensure_stapi(), self._devices, cid
             )
+            if size is not None:
+                self.last_native_size[cid] = size
         return bgr
 
     def read_all(self) -> Dict[str, np.ndarray]:

@@ -63,5 +63,5 @@ def run_move_xb(
 
     ret = robot.move_xb_run(rc, rb.MoveXBOption.Position, return_on_error=False)
     logger.info(yellow(f"       -> move_xb_run: {ret}"))
-    wait_move_done(robot, rc)
+    wait_move_done(robot, rc, abort_check=getattr(motion, "abort_check", None))
     logger.info(green("MoveXB finished"))

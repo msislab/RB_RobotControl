@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, Mapping, Optional
 
-from src.camera.device_fps import DeviceFpsStore
+from src.camera.device_fps import DeviceMetaStore
 
 
 class FpsMeter:
@@ -32,12 +32,20 @@ class FpsMeter:
 
 
 class CameraFpsBoard:
-    """One meter per stream key; titles as NAME — m / cam x (cfg t)."""
+    """One meter per stream; titles NAME — m / cam x (cfg t) + WxH line."""
 
     def __init__(self) -> None:
         self._meters: Dict[str, FpsMeter] = {}
         self.titles: Dict[str, str] = {}
-        self.device_fps: Optional[DeviceFpsStore] = None
+        self.device_meta: Optional[DeviceMetaStore] = None
+
+    @property
+    def device_fps(self) -> Optional[DeviceMetaStore]:
+        return self.device_meta
+
+    @device_fps.setter
+    def device_fps(self, store: Optional[DeviceMetaStore]) -> None:
+        self.device_meta = store
 
     def reset(self) -> None:
         self._meters.clear()
@@ -53,10 +61,16 @@ class CameraFpsBoard:
         fr = frames.get(key)
         if fr is None:
             return
-        cam = None if self.device_fps is None else self.device_fps.get(key)
+        meta = self.device_meta
+        cam = None if meta is None else meta.get_fps(key)
         cam_s = "—" if cam is None else str(int(round(cam)))
+        size = None if meta is None else meta.get_size(key)
+        size_s = "—" if size is None else f"{size[0]}×{size[1]}"
         fr.configure(
-            text=f"{base} — {meter.measured} / cam {cam_s} (cfg {int(target)})"
+            text=(
+                f"{base} — {meter.measured} / cam {cam_s} (cfg {int(target)})\n"
+                f"{size_s}"
+            )
         )
 
     def paint_titles(

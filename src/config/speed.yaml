@@ -17,4 +17,4 @@ xb:
   joint_speed: 100.0           # % — min 0, max 100 (rbpodo move_xb_j_add)
   joint_acceleration: 100.0    # % — min 0, max 100
   linear_speed: 1000.0         # mm/s — min 0, max 1000 (RB tool max 1 m/s)
-  linear_acceleration: 10000.0  # mm/s² — min 0; no published hardware max (err 324 if out of range)
+  linear_acceleration: 1000.0  # mm/s² — min 0; no published hardware max (err 324 if out of range)

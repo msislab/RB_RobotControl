@@ -2,6 +2,6 @@
 enabled: false
 fps: 150
 exposure: 3000
-gain: 50       # GenICam Gain (often 0–208 ≈ 0–20.8 dB)
+gain: 180       # GenICam Gain (often 0–208 ≈ 0–20.8 dB)
 ip_pool_cidr: "192.168.2.192/27"
 preferred_ips: []

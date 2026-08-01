@@ -25,7 +25,8 @@ class RobotMotion:
         """
         self.robot = robot
         self.rc = rc
-    
+        self.abort_check = None  # optional Callable[[], bool] for Immediate Stop
+
     def _check_connection(self):
         """Check if robot is connected."""
         if self.robot is None or self.rc is None:
@@ -45,7 +46,7 @@ class RobotMotion:
         logger.info(yellow(f"       Moving robot to point: {point}"))
         ret = self.robot.move_l(self.rc, point, speed, acc, return_on_err=False)
         logger.info(yellow(f"       -> move_l return: {ret}"))
-        wait_move_done(self.robot, self.rc)
+        wait_move_done(self.robot, self.rc, abort_check=self.abort_check)
         logger.info(green(f"       -> Robot moved to point: {point}"))
 
     def move_j(self, joints: np.ndarray, speed: float = 60, acc: float = 80):
@@ -54,7 +55,7 @@ class RobotMotion:
         logger.info(yellow(f"       Moving robot joints: {joints}"))
         ret = self.robot.move_j(self.rc, joints, speed, acc, return_on_err=False)
         logger.info(yellow(f"       -> move_j return: {ret}"))
-        wait_move_done(self.robot, self.rc)
+        wait_move_done(self.robot, self.rc, abort_check=self.abort_check)
         logger.info(green(f"       -> Robot moved joints: {joints}"))
 
     def move_xb(self, steps, **kwargs) -> None:

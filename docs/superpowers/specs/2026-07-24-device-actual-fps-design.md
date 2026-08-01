@@ -16,7 +16,17 @@ If the device does not expose a live actual rate: `cam —`.
 |--------|--------|--------|
 | RealSense | `frame_metadata_value.actual_fps` | Per stream when supported; metadata is **Hz×1000** (divide by 1000). ≤0 → missing |
 | Omron | GenICam `ResultingFrameRate` | Only this live node; **not** `AcquisitionFrameRate` (setpoint). Probe once; throttle reads ~1 Hz |
-| Stereo depth | none | Always `cam —` |
+| Stereo depth | none | Always `cam —`; size `—` |
+
+## Title format
+
+```
+RGB — 12 / cam 28 (cfg 30)
+640×360
+```
+
+Second line is **capture/sensor** WxH (RealSense stream array shape; Omron image width/height before preview downscale).
+
 
 ## Architecture
 

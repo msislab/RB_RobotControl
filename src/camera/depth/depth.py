@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from loguru import logger
 
+from src.camera.depth.gpu_cleanup import release_gpu_cache
 from src.camera.depth.heatmap import depth_to_jet_heatmap, to_gray_uint8
 from src.utils.color import green, yellow
 
@@ -129,6 +130,10 @@ class DepthEstimator:
             self.logger.info(green(f"Stereo warmup done in {time.perf_counter() - t0:.1f}s"))
         except Exception as e:
             self.logger.warning(yellow(f"Stereo warmup failed (continuing): {e}"))
+        finally:
+            # Keep this model for live infer; only release unused CUDA cache.
+            del dummy
+            release_gpu_cache()
 
     def _infer(
         self,
@@ -163,6 +168,7 @@ class DepthEstimator:
         if not warmup:
             self.last_inference_ms = elapsed_ms
         disp = self._unpad(disp_raw, h, w).squeeze().cpu().numpy().astype(np.float32)
+        del img0p, img1p, disp_raw
         valid = disp > self.min_disparity
         depth = np.zeros_like(disp, dtype=np.float32)
         depth[valid] = (fx * baseline) / disp[valid]
