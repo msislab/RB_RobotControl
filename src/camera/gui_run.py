@@ -21,8 +21,8 @@ from src.utils.color import green, yellow
 
 
 def begin_start(gui: Any, cfg: Dict[str, Any]) -> None:
-    if getattr(gui, "_stopping", False):
-        gui.status_var.set("Still stopping — wait, then Start")
+    if getattr(gui, "_stopping", False) or getattr(gui, "_stop_phase", None):
+        gui.status_var.set("Still stopping — wait for cycle/home, then Start")
         return
     gui._fps = int(cfg["fps"])
     gui._start_cfg = cfg

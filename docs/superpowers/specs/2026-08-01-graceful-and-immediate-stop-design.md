@@ -21,7 +21,9 @@ Window close / Start-fail use Immediate-style halt.
 - `wait_move_done` aborts when `immediate_stop` (via `RobotMotion.abort_check`).
 - ZigZag sleeps interrupt on either stop flag (so zeros/home can run promptly).
 - Sequence mid-pass ignores graceful `stop_requested` (finish pass); aborts only on `immediate_stop`.
-- GUI: **Immediate Stop** button under Start/Stop; both tear down cameras as today.
+- GUI: **Immediate Stop** under Start/Stop.
+- Graceful Stop: cameras keep running until the robot worker finishes the cycle/home; **Immediate Stop stays enabled** to escalate; **Start stays disabled** until that finish + camera teardown.
+- Immediate Stop (or escalate): `task_stop`, then same watch — Start only after worker exit + cameras down.
 
 ## Files
 

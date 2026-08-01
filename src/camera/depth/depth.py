@@ -13,6 +13,7 @@ from loguru import logger
 
 from src.camera.depth.gpu_cleanup import release_gpu_cache
 from src.camera.depth.heatmap import depth_to_jet_heatmap, to_gray_uint8
+from src.camera.depth.torch_size import depth_from_letterbox, letterbox_ir_pair
 from src.utils.color import green, yellow
 
 logger = logger.bind(component="stereo")
@@ -119,9 +120,7 @@ class DepthEstimator:
     def _warmup(self, iterations: int = 3) -> None:
         dummy = np.zeros((self.input_h, self.input_w), dtype=np.uint8)
         self.logger.info(
-            green(
-                f"Warming up stereo ({self.input_w}x{self.input_h}, {iterations} forwards)..."
-            )
+            green(f"Warming up stereo ({self.input_w}x{self.input_h}, {iterations} forwards)...")
         )
         t0 = time.perf_counter()
         try:
@@ -131,7 +130,6 @@ class DepthEstimator:
         except Exception as e:
             self.logger.warning(yellow(f"Stereo warmup failed (continuing): {e}"))
         finally:
-            # Keep this model for live infer; only release unused CUDA cache.
             del dummy
             release_gpu_cache()
 
@@ -143,6 +141,7 @@ class DepthEstimator:
         baseline: float,
         warmup: bool = False,
     ) -> np.ndarray:
+        """Infer depth; inputs must already be model-size (warmup / letterboxed)."""
         if fx <= 0 or baseline <= 0:
             raise ValueError(f"fx and baseline must be positive, got fx={fx}, baseline={baseline}")
         if self.model is None:
@@ -153,22 +152,24 @@ class DepthEstimator:
             raise ValueError(f"IR shape mismatch: {left_ir.shape} vs {right_ir.shape}")
         img0p, h, w = self._pad32(self._ir_to_tensor(left_ir))
         img1p, _, _ = self._pad32(self._ir_to_tensor(right_ir))
-        torch.cuda.synchronize()
-        t0 = time.perf_counter()
-        with torch.inference_mode():
-            disp_raw = self.model.forward(
-                img0p,
-                img1p,
-                iters=self.valid_iters,
-                test_mode=True,
-                optimize_build_volume="pytorch1",
-            )
-        torch.cuda.synchronize()
-        elapsed_ms = (time.perf_counter() - t0) * 1000.0
-        if not warmup:
-            self.last_inference_ms = elapsed_ms
-        disp = self._unpad(disp_raw, h, w).squeeze().cpu().numpy().astype(np.float32)
-        del img0p, img1p, disp_raw
+        disp_raw = None
+        try:
+            torch.cuda.synchronize()
+            t0 = time.perf_counter()
+            with torch.inference_mode():
+                disp_raw = self.model.forward(
+                    img0p, img1p, iters=self.valid_iters, test_mode=True,
+                    optimize_build_volume="pytorch1",
+                )
+            torch.cuda.synchronize()
+            if not warmup:
+                self.last_inference_ms = (time.perf_counter() - t0) * 1000.0
+            disp = self._unpad(disp_raw, h, w).squeeze().cpu().numpy().astype(np.float32)
+        except torch.cuda.OutOfMemoryError:
+            release_gpu_cache()
+            raise
+        finally:
+            del img0p, img1p, disp_raw
         valid = disp > self.min_disparity
         depth = np.zeros_like(disp, dtype=np.float32)
         depth[valid] = (fx * baseline) / disp[valid]
@@ -184,7 +185,12 @@ class DepthEstimator:
         *,
         with_heatmap: bool = True,
     ) -> Tuple[Optional[np.ndarray], np.ndarray]:
-        depth = self._infer(left_image, right_image, fx, baseline)
+        left_p, right_p, scale, ch, cw, oh, ow = letterbox_ir_pair(
+            left_image, right_image, self.input_h, self.input_w
+        )
+        depth = depth_from_letterbox(
+            self._infer(left_p, right_p, float(fx) * scale, baseline), ch, cw, oh, ow
+        )
         if not with_heatmap:
             return None, depth
         return depth_to_jet_heatmap(depth), depth

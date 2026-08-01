@@ -20,8 +20,10 @@ def build_estimator(cfg: Mapping[str, Any], *, width: int, height: int):
     }
     if backend == "pytorch":
         from src.camera.depth.depth import DepthEstimator
+        from src.camera.depth.torch_size import pytorch_infer_hw
 
-        return DepthEstimator(input_h=int(height), input_w=int(width), **common)
+        ih, iw = pytorch_infer_hw(height, width)
+        return DepthEstimator(input_h=ih, input_w=iw, **common)
     if backend == "onnx":
         from src.camera.depth.onnx_depth import OnnxDepthEstimator
 

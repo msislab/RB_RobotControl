@@ -49,6 +49,8 @@ class CameraControlGui:
         self._stereo = None
         self._stereo_pane = False
         self._stopping = False
+        self._stop_phase = None
+        self._stop_watch_started = False
         self._capture_pool = None
         self._pane_workers = None
         self._frame_hub = None
@@ -90,7 +92,8 @@ class CameraControlGui:
 
     def _schedule_pose(self) -> None:
         self._tcp, self._joints = peek_pose(self.app)
-        if not self._robot_view:
+        # Don't overwrite Stopping… status while a stop watch is in progress.
+        if not self._robot_view and not getattr(self, "_stop_phase", None):
             if self._running or (getattr(self.app, "_setup_done", False) and not self._starting):
                 text = format_run_status(
                     rs_on=self._rs_on,

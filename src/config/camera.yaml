@@ -16,5 +16,5 @@ stereo_depth:
   variant: "23-36-37"
   valid_iters: 4
   max_disparity: 192   # geometry volume max (pytorch); 192 is the usual upper default
-  z_far: 3.0   # metres; depths beyond this are blanked in the heatmap
+  z_far: 1.0   # metres; depths beyond this are blanked in the heatmap
   onnx_size: "320x736"   # 576x960 | 320x736 (onnx only; 576x960 needs lots of VRAM)
